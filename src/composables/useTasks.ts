@@ -1,4 +1,3 @@
-// src/composables/useTasks.ts
 import { computed, ref, watch } from "vue";
 import { db } from "@/services/firebase";
 import {
@@ -16,12 +15,14 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "./useAuth";
 
+export type TaskType = "task" | "note";
+
 export type Subtask = {
   id: string;
   title: string;
   description?: string;
   link?: string;
-  dueDate?: string; // formato YYYY-MM-DD (opcional)
+  dueDate?: string; // YYYY-MM-DD
   done: boolean;
 };
 
@@ -29,7 +30,9 @@ export type Task = {
   id: string;
   userId: string;
   title: string;
-  completed: boolean;
+  type: TaskType;      // "task" (con subtareas) o "note" (solo texto)
+  description?: string; // para notas
+  completed: boolean;  // solo tiene sentido si type === "task"
   order: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -62,35 +65,60 @@ export function useTasks() {
 
       unsubscribe = onSnapshot(q, (snapshot) => {
         const raw = snapshot.docs.map((d) => {
-          const data = d.data() as Omit<Task, "id">;
-          return { id: d.id, ...data };
+          const data = d.data() as Omit<Task, "id"> & { type?: TaskType };
+
+          const type: TaskType = data.type ?? "task"; // compat con docs viejos
+          const subtasks = Array.isArray(data.subtasks) ? data.subtasks : [];
+
+          return {
+            id: d.id,
+            ...data,
+            type,
+            subtasks,
+          } as Task;
         });
 
-        // ordenamos en cliente por "order"
+        // ordenamos por "order"
         tasks.value = raw.sort((a, b) => a.order - b.order);
       });
     },
     { immediate: true }
   );
 
+  // Separaciones
+  const tasksOnly = computed(() =>
+    tasks.value.filter((t) => (t.type ?? "task") === "task")
+  );
+
+  const notes = computed(() =>
+    tasks.value.filter((t) => (t.type ?? "task") === "note")
+  );
+
   const activeTasks = computed(() =>
-    tasks.value.filter((t) => !t.completed)
+    tasksOnly.value.filter((t) => !t.completed)
   );
 
   const completedTasks = computed(() =>
-    tasks.value.filter((t) => t.completed)
+    tasksOnly.value.filter((t) => t.completed)
   );
 
-  async function createTask(title: string) {
+  async function createTask(payload: {
+    title: string;
+    type: TaskType;
+    description?: string;
+  }) {
     if (!user.value) return;
 
     const now = Timestamp.now();
 
+    // Si es nota, completed/subtasks no tienen casi sentido, pero los guardamos igual
     await addDoc(collection(db, "tasks"), {
       userId: user.value.uid,
-      title,
+      title: payload.title,
+      type: payload.type,
+      description: payload.type === "note" ? payload.description ?? "" : null,
       completed: false,
-      order: Date.now(), // se usará para ordenar por creación
+      order: Date.now(),
       createdAt: now,
       updatedAt: now,
       subtasks: [],
@@ -100,8 +128,16 @@ export function useTasks() {
   async function updateTask(taskId: string, payload: Partial<Task>) {
     const now = Timestamp.now();
 
+    // Limpieza simple: quitamos undefined para no liarla con Firestore
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      if (value !== undefined) {
+        cleaned[key] = value;
+      }
+    }
+
     await updateDoc(doc(db, "tasks", taskId), {
-      ...payload,
+      ...cleaned,
       updatedAt: now,
     });
   }
@@ -111,7 +147,6 @@ export function useTasks() {
   }
 
   async function addSubtask(task: Task, subtaskInput: Omit<Subtask, "id">) {
-    // Construimos la subtarea sin undefined
     const newSubtask: Subtask = {
       id: crypto.randomUUID(),
       title: subtaskInput.title,
@@ -139,6 +174,19 @@ export function useTasks() {
     });
   }
 
+  async function updateSubtask(
+    task: Task,
+    subtaskId: string,
+    payload: Partial<Subtask>
+  ) {
+    const updatedSubtasks = task.subtasks.map((st) =>
+      st.id === subtaskId ? { ...st, ...payload } : st
+    );
+
+    await updateTask(task.id, {
+      subtasks: updatedSubtasks as any,
+    });
+  }
 
   async function toggleSubtask(task: Task, subtaskId: string) {
     const updatedSubtasks = task.subtasks.map((st) =>
@@ -169,12 +217,15 @@ export function useTasks() {
 
   return {
     tasks,
+    tasksOnly,
+    notes,
     activeTasks,
     completedTasks,
     createTask,
     updateTask,
     deleteTask,
     addSubtask,
+    updateSubtask,
     toggleSubtask,
     uncheckAllSubtasks,
   };

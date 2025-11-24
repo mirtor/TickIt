@@ -89,7 +89,6 @@ body {
 
 .auth-tabs {
   display: flex;
-  gap: 0.5rem;
   justify-content: center;
   margin-bottom: 1.25rem;
 }
@@ -110,6 +109,17 @@ body {
   background-color: var(--primary);
   color: #ffffff;
   transform: translateY(-1px);
+}
+
+.task-button{
+  width: 50%;
+  border-radius: 0px;
+  border-top-left-radius: 15px;
+}
+.note-button{
+  width: 50%;
+  border-radius: 0px;
+  border-top-right-radius: 15px;
 }
 
 /* Formularios */
