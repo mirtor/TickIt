@@ -84,6 +84,17 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Acciones subtarea -->
+              <div class="subtask-actions">
+                <button
+                  class="icon-btn"
+                  @click="emit('edit-subtask', st.id)"
+                  title="Editar subtarea"
+                >
+                  <img src="/deleteIcon.svg" alt="Borrar" class="task-card-icon" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -131,6 +142,18 @@
                   </span>
                 </div>
               </div>
+
+              <!-- Acciones subtarea -->
+              <div class="subtask-actions">
+                <button
+                  class="icon-btn"
+                  @click="emit('edit-subtask', st.id)"
+                  title="Editar subtarea"
+                >
+                  <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
+                </button>
+
+              </div>
             </div>
           </div>
         </div>
@@ -153,6 +176,7 @@ const emit = defineEmits<{
   (e: "toggle-subtask", id: string): void;
   (e: "uncheck-all"): void;
   (e: "open-new-subtask"): void;
+  (e: "edit-subtask", id: string): void;
 }>();
 
 const activeSubtasks = computed(() =>
@@ -167,3 +191,12 @@ function onClose() {
   emit("close");
 }
 </script>
+
+<style scoped>
+.subtask-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-left: 0.25rem;
+}
+</style>

@@ -21,18 +21,13 @@
 
     <!-- Contenido principal -->
     <main class="task-main">
-      <!-- Toolbar -->
-      <section class="task-toolbar">
-        <div>
-          <div class="task-toolbar-title">Mis tareas</div>
-          <div class="task-toolbar-counts">
-            Activas: {{ activeTasks.length }} · Completadas: {{ completedTasks.length }}
-          </div>
-        </div>
-        <button class="btn btn-primary" @click="showNewTaskModal = true">
-          + Nuevo
-        </button>
-      </section>
+      <button
+        class="btn btn-primary btn-fixed"
+        @click="showNewTaskModal = true"
+        title="Añadir tarea"
+      >
+        <img src="/addIcon.svg" alt="Editar" class="task-card-icon" />
+      </button>
 
       <div class="auth-tabs" style="justify-content: flex-start; margin-bottom: 0.75rem;">
         <button
@@ -236,14 +231,20 @@
       @toggle-subtask="handleToggleSubtask"
       @uncheck-all="handleUncheckAll"
       @open-new-subtask="() => { if (selectedTask) openSubtaskModal(selectedTask) }"
+      @edit-subtask="handleEditSubtask"
     />
 
     <!-- Modal: nueva subtarea -->
     <NewSubtaskModal
       v-if="subtaskModalTask"
       :taskTitle="subtaskModalTask.title"
+      :mode="editingSubtaskId ? 'edit' : 'create'"
+      :initialSubtask="editingSubtaskId && subtaskModalTask
+        ? subtaskModalTask.subtasks.find(st => st.id === editingSubtaskId) || undefined
+        : undefined"
       @close="closeSubtaskModal"
       @submit="handleSubmitSubtask"
+      @delete="handleDeleteSubtaskFromModal"
     />
 
     <!-- Modal: confirmación de borrado -->
@@ -271,11 +272,11 @@ import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
 
-import NewTaskModal from "../components/tasks/NewTaskModal.vue";
-import TaskDetailModal from "../components/tasks/TaskDetailModal.vue";
-import NewSubtaskModal from "../components/tasks/NewSubtaskModal.vue";
-import DeleteTaskModal from "../components/tasks/DeleteTaskModal.vue";
-import EditTaskModal from "../components/tasks/EditTaskModal.vue";
+import NewTaskModal from "../components/NewTaskModal.vue";
+import TaskDetailModal from "../components/TaskDetailModal.vue";
+import NewSubtaskModal from "../components/NewSubtaskModal.vue";
+import DeleteTaskModal from "../components/DeleteTaskModal.vue";
+import EditTaskModal from "../components/EditTaskModal.vue";
 
 const router = useRouter();
 const { user, logout } = useAuth();
@@ -289,6 +290,8 @@ const {
   deleteTask,
   addSubtask,
   updateTask,
+  updateSubtask,
+  deleteSubtask,
   toggleSubtask,
   uncheckAllSubtasks,
 } = useTasks();
@@ -296,11 +299,14 @@ const {
 // Estado de modales
 const showNewTaskModal = ref(false);
 const selectedTask = ref<Task | null>(null);      // modal lista subtareas
+const editingSubtaskId = ref<string | null>(null);
 const subtaskModalTask = ref<Task | null>(null);  // modal nueva subtarea
 const showDeleteModal = ref(false);
 const taskToDelete = ref<Task | null>(null);
 const activeTab = ref<"tasks" | "notes">("tasks");
 const itemBeingEdited = ref<Task | null>(null);
+ 
+
 
 // Redirección si no hay usuario
 watch(
@@ -333,6 +339,8 @@ watch(
   { deep: true }
 );
 
+
+
 // Crear tarea
 async function handleCreateTask(payload: { title: string; type: TaskType; description?: string }) {
   await createTask(payload);
@@ -348,31 +356,9 @@ function onTaskCardClick(task: Task) {
 // Nueva subtarea (abrir modal)
 function openSubtaskModal(task: Task) {
   subtaskModalTask.value = task;
+  editingSubtaskId.value = null;
 }
 
-function closeSubtaskModal() {
-  subtaskModalTask.value = null;
-}
-
-// Submit nueva subtarea
-async function handleSubmitSubtask(payload: {
-  title: string;
-  description?: string;
-  link?: string;
-  dueDate?: string;
-}) {
-  if (!subtaskModalTask.value) return;
-
-  await addSubtask(subtaskModalTask.value, {
-    title: payload.title,
-    description: payload.description,
-    link: payload.link,
-    dueDate: payload.dueDate,
-    done: false,
-  });
-
-  subtaskModalTask.value = null;
-}
 
 // Acciones sobre subtareas (modal lista)
 async function handleToggleSubtask(subtaskId: string) {
@@ -384,6 +370,13 @@ async function handleUncheckAll() {
   if (!selectedTask.value) return;
   await uncheckAllSubtasks(selectedTask.value);
 }
+
+function handleEditSubtask(subtaskId: string) {
+  if (!selectedTask.value) return;
+  subtaskModalTask.value = selectedTask.value;
+  editingSubtaskId.value = subtaskId; // modo edición
+}
+
 
 // Borrar tarea
 function openDeleteModal(task: Task) {
@@ -432,5 +425,48 @@ async function handleSaveEditedTask(payload: { title: string; description?: stri
 
   itemBeingEdited.value = null;
 }
+
+function closeSubtaskModal() {
+  subtaskModalTask.value = null;
+  editingSubtaskId.value = null;
+}
+
+// Submit nueva subtarea o edición
+async function handleSubmitSubtask(payload: {
+  title: string;
+  description?: string;
+  link?: string;
+  dueDate?: string;
+}) {
+  if (!subtaskModalTask.value) return;
+
+  // Crear
+  if (!editingSubtaskId.value) {
+    await addSubtask(subtaskModalTask.value, {
+      title: payload.title,
+      description: payload.description,
+      link: payload.link,
+      dueDate: payload.dueDate,
+      done: false,
+    });
+  } else {
+    // Editar
+    await updateSubtask(subtaskModalTask.value, editingSubtaskId.value, {
+      title: payload.title,
+      description: payload.description,
+      link: payload.link,
+      dueDate: payload.dueDate,
+    });
+  }
+
+  closeSubtaskModal();
+}
+
+async function handleDeleteSubtaskFromModal() {
+  if (!subtaskModalTask.value || !editingSubtaskId.value) return;
+  await deleteSubtask(subtaskModalTask.value, editingSubtaskId.value);
+  closeSubtaskModal();
+}
+
 
 </script>

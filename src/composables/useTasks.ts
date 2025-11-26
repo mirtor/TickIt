@@ -188,6 +188,20 @@ export function useTasks() {
     });
   }
 
+  async function deleteSubtask(task: Task, subtaskId: string) {
+  const updatedSubtasks = task.subtasks.filter((st) => st.id !== subtaskId);
+
+  const completed =
+    updatedSubtasks.length > 0 &&
+    updatedSubtasks.every((st) => st.done);
+
+  await updateTask(task.id, {
+    subtasks: updatedSubtasks as any,
+    completed,
+  });
+}
+
+
   async function toggleSubtask(task: Task, subtaskId: string) {
     const updatedSubtasks = task.subtasks.map((st) =>
       st.id === subtaskId ? { ...st, done: !st.done } : st
@@ -226,6 +240,7 @@ export function useTasks() {
     deleteTask,
     addSubtask,
     updateSubtask,
+    deleteSubtask,
     toggleSubtask,
     uncheckAllSubtasks,
   };

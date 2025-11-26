@@ -3,7 +3,7 @@
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">
-          Nueva subtarea
+          {{ isEdit ? "Editar subtarea" : "Nueva subtarea" }}
         </div>
         <button
           class="btn btn-outline"
@@ -62,8 +62,19 @@
         <button class="btn btn-outline" @click="onCancel">
           Cancelar
         </button>
+
+        <!-- Botón borrar solo en modo edición -->
+        <button
+          v-if="isEdit"
+          class="btn btn-outline"
+          style="border-color: #fecaca; color: #b91c1c; margin-right: auto;"
+          @click="onDelete"
+        >
+          Eliminar subtarea
+        </button>
+
         <button class="btn btn-primary" @click="onSubmit">
-          Añadir subtarea
+          {{ isEdit ? "Guardar cambios" : "Añadir subtarea" }}
         </button>
       </div>
     </div>
@@ -71,10 +82,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps<{
   taskTitle: string;
+  mode?: "create" | "edit";
+  initialSubtask?: {
+    title: string;
+    description?: string;
+    link?: string;
+    dueDate?: string;
+  };
 }>();
 
 const emit = defineEmits<{
@@ -85,12 +103,31 @@ const emit = defineEmits<{
     link?: string;
     dueDate?: string;
   }): void;
+  (e: "delete"): void;
 }>();
+
+const isEdit = computed(() => props.mode === "edit");
 
 const title = ref("");
 const description = ref("");
 const link = ref("");
 const dueDate = ref("");
+
+// Cuando cambien los datos iniciales (modo edición), sincronizamos
+watch(
+  () => props.initialSubtask,
+  (st) => {
+    if (!st) {
+      reset();
+      return;
+    }
+    title.value = st.title ?? "";
+    description.value = st.description ?? "";
+    link.value = st.link ?? "";
+    dueDate.value = st.dueDate ?? "";
+  },
+  { immediate: true }
+);
 
 function reset() {
   title.value = "";
@@ -114,7 +151,9 @@ function onSubmit() {
     link: link.value.trim() || undefined,
     dueDate: dueDate.value || undefined,
   });
+}
 
-  reset();
+function onDelete() {
+  emit("delete");
 }
 </script>
