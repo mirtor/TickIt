@@ -772,6 +772,10 @@ if (__VLS_ctx.itemBeingEdited) {
     [itemBeingEdited, closeEditTaskModal, handleSaveEditedTask,];
     var __VLS_38;
 }
+__VLS_asFunctionalElement(__VLS_intrinsics.div, __VLS_intrinsics.div)({
+    ...{ class: "version" },
+});
+__VLS_asFunctionalElement(__VLS_intrinsics.p, __VLS_intrinsics.p)({});
 /** @type {__VLS_StyleScopedClasses['task-page']} */ ;
 /** @type {__VLS_StyleScopedClasses['task-header']} */ ;
 /** @type {__VLS_StyleScopedClasses['task-header-left']} */ ;
@@ -838,5 +842,6 @@ if (__VLS_ctx.itemBeingEdited) {
 /** @type {__VLS_StyleScopedClasses['icon-btn']} */ ;
 /** @type {__VLS_StyleScopedClasses['icon-btn-danger']} */ ;
 /** @type {__VLS_StyleScopedClasses['task-card-icon']} */ ;
+/** @type {__VLS_StyleScopedClasses['version']} */ ;
 const __VLS_export = (await import('vue')).defineComponent({});
 export default {};
