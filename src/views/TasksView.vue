@@ -340,6 +340,9 @@
     />
 
   </div>
+
+
+  <div class="version"><p>Versión 30.11.25</p></div>
 </template>
 
 <script setup lang="ts">

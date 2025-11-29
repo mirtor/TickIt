@@ -578,6 +578,12 @@ body {
   color: var(--text-muted);
 }
 
+.version{
+  margin: 5px;
+  font-size: 10px;
+  text-align: center;
+}
+
 /* Botón flotante opcional para móvil */
 @media (max-width: 640px) {
   .task-main {
