@@ -1,51 +1,42 @@
 <template>
   <div class="modal-backdrop" @click.self="onClose">
     <div class="modal">
+
       <div class="modal-header">
+
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          <div>
-            <div class="modal-title">
+
+          <div style="display: inline-block; flex: 1;">
+            <!-- Título -->
+            <div class="modal-title" style="text-align: left;">
               {{ task.title }}
             </div>
+
+            <!-- Pndt / Compl -->
             <div class="task-toolbar-counts">
               {{ activeSubtasks.length }} pendientes ·
               {{ completedSubtasks.length }} completadas
             </div>
-          </div>
-          <button
-            class="icon-btn"
-            @click="emit('open-new-subtask')"
-            title="Añadir subtarea"
-          >
-            <img
-              src="/subtaskIcon.svg"
-              alt="Añadir subtarea"
-              class="task-card-icon"
-            />
-          </button>
-        </div>
 
-        <button
-          class="btn btn-outline"
-          style="font-size: 0.7rem; padding: 0.35rem 0.6rem"
-          @click="onClose"
-        >
-          Cerrar
-        </button>
+          </div>
+
+          <button
+            class="btn btn-outline"
+            style="font-size: 0.7rem; padding: 0.35rem 0.6rem; font-weight: bold;"
+            @click="onClose"
+          >
+            X
+          </button> 
+
+        </div>
       </div>
 
-      <div class="modal-body">
-        <button
-          v-if="task.subtasks && task.subtasks.length"
-          class="btn btn-outline btn-full"
-          style="font-size: 0.75rem"
-          @click="emit('uncheck-all')"
-        >
-          Desmarcar todas las subtareas
-        </button>
 
+      <div class="modal-body">
+        
         <!-- Subtareas pendientes -->
         <div class="subtasks-section" v-if="activeSubtasks.length">
+          <hr>
           <div class="subtasks-title">Subtareas pendientes</div>
           <div class="subtasks-list">
             <div
@@ -92,18 +83,30 @@
                   @click="emit('edit-subtask', st.id)"
                   title="Editar subtarea"
                 >
-                  <img src="/deleteIcon.svg" alt="Borrar" class="task-card-icon" />
+                  <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
+
               </div>
+
             </div>
           </div>
         </div>
+
+        <!-- New task -->
+        <button
+          class="btn btn-primary"
+          @click="emit('open-new-subtask')"
+          title="Añadir subtarea"
+        >
+          Nueva subtarea
+        </button>
 
         <!-- Subtareas completadas -->
         <div
           class="subtasks-section"
           v-if="completedSubtasks.length"
         >
+          <hr>
           <div class="subtasks-title">Subtareas completadas</div>
           <div class="subtasks-list">
             <div
@@ -157,6 +160,16 @@
             </div>
           </div>
         </div>
+
+        <!-- Desmarcar -->
+        <button
+          v-if="task.subtasks && task.subtasks.length"
+          class="btn btn-outline btn-full"
+          style="font-size: 0.75rem"
+          @click="emit('uncheck-all')"
+        >
+          Desmarcar todas las subtareas
+        </button>
 
       </div>
     </div>

@@ -48,6 +48,7 @@
       </div>
 
 
+      <!-- Tareas -->
       <section v-if="activeTab === 'tasks'">
         <!-- Tareas activas -->
         <section v-if="activeTasks.length" class="task-list-section">
@@ -59,6 +60,26 @@
               class="task-card"
               @click="onTaskCardClick(task)"
             >
+
+              <div class="task-card-icons" @click.stop>
+                 <!-- Reordenar -->
+                <button
+                  class="icon-btn"
+                  @click="moveItemUp(task)"
+                  title="Mover arriba"
+                >
+                  ↑
+                </button>
+                <button
+                  class="icon-btn"
+                  @click="moveItemDown(task)"
+                  title="Mover abajo"
+                >
+                  ↓
+                </button>
+
+              </div>
+
               <div class="task-card-main">
                 <h3 class="task-card-title">
                   {{ task.title }}
@@ -86,7 +107,7 @@
                   />
                 </button>
 
-                <!-- Añadir subtarea -->
+                <!-- Añadir subtarea 
                 <button
                   class="icon-btn"
                   @click="openSubtaskModal(task)"
@@ -98,6 +119,7 @@
                     class="task-card-icon"
                   />
                 </button>
+                -->
 
                 <!-- Editar tarea -->
                 <button
@@ -123,6 +145,25 @@
               class="task-card"
               @click="onTaskCardClick(task)"
             >
+              <div class="task-card-icons" @click.stop>
+                <!-- Reordenar -->
+                <button
+                  class="icon-btn"
+                  @click="moveItemUp(task)"
+                  title="Mover arriba"
+                >
+                  ↑
+                </button>
+                <button
+                  class="icon-btn"
+                  @click="moveItemDown(task)"
+                  title="Mover abajo"
+                >
+                  ↓
+                </button>
+
+              </div>
+
               <div class="task-card-main">
                 <h3 class="task-card-title" style="text-decoration: line-through; color: #6b7280">
                   {{ task.title }}
@@ -133,6 +174,16 @@
               </div>
 
               <div class="task-card-icons" @click.stop>
+                <!-- Editar tarea -->
+                <button
+                  class="icon-btn"
+                  @click="openEditTaskModal(task)"
+                  title="Editar tarea"
+                >
+                  <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
+                </button>
+
+                <!-- Borrar tarea -->
                 <button
                   class="icon-btn icon-btn-danger"
                   @click="openDeleteModal(task)"
@@ -151,15 +202,38 @@
 
       </section>
 
+      <!-- Notas -->
       <section v-if="activeTab === 'notes'" class="task-list-section">
         <h2 class="task-list-title">Notas</h2>
+
         <div class="task-list">
           <article
             v-for="note in notes"
             :key="note.id"
             class="task-card"
+            @click="openEditTaskModal(note)"
           >
+              <div class="task-card-icons" @click.stop>
+                <!-- Reordenar -->
+                <button
+                  class="icon-btn"
+                  @click="moveItemUp(note)"
+                  title="Mover arriba"
+                >
+                  ↑
+                </button>
+                <button
+                  class="icon-btn"
+                  @click="moveItemDown(note)"
+                  title="Mover abajo"
+                >
+                  ↓
+                </button>
+
+              </div>
+
             <div class="task-card-main">
+              
               <h3 class="task-card-title">
                 {{ note.title }}
               </h3>
@@ -203,8 +277,10 @@
                 />
               </button>
             </div>
+
           </article>
         </div>
+
       </section>
 
       
@@ -349,7 +425,6 @@ async function handleCreateTask(payload: { title: string; type: TaskType; descri
 
 // Click en tarjeta: solo abre detalle si tiene subtareas
 function onTaskCardClick(task: Task) {
-  if (!task.subtasks || !task.subtasks.length) return;
   selectedTask.value = task;
 }
 
@@ -467,6 +542,42 @@ async function handleDeleteSubtaskFromModal() {
   await deleteSubtask(subtaskModalTask.value, editingSubtaskId.value);
   closeSubtaskModal();
 }
+
+function getListForItem(item: Task): Task[] {
+  if (item.type === "note") {
+    return notes.value;
+  }
+
+  // Para tareas: usamos lista de activas o completadas
+  return item.completed ? completedTasks.value : activeTasks.value;
+}
+
+async function moveItemUp(item: Task) {
+  const list = getListForItem(item);
+  const index = list.findIndex((t) => t.id === item.id);
+  if (index <= 0) return;
+
+  const prev = list[index - 1];
+
+  await Promise.all([
+    updateTask(item.id, { order: prev.order }),
+    updateTask(prev.id, { order: item.order }),
+  ]);
+}
+
+async function moveItemDown(item: Task) {
+  const list = getListForItem(item);
+  const index = list.findIndex((t) => t.id === item.id);
+  if (index === -1 || index >= list.length - 1) return;
+
+  const next = list[index + 1];
+
+  await Promise.all([
+    updateTask(item.id, { order: next.order }),
+    updateTask(next.id, { order: item.order }),
+  ]);
+}
+
 
 
 </script>

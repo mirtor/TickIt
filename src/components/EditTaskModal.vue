@@ -23,7 +23,7 @@
           <label class="form-label">Descripción</label>
           <textarea
             v-model="localDescription"
-            rows="4"
+            rows="25"
             style="resize: vertical; border-radius: 12px; border: 1px solid var(--border); padding: 0.6rem 0.7rem; font-size: 0.8rem; background-color: #f9fafb; outline: none;"
           ></textarea>
         </div>

@@ -8,7 +8,7 @@
         <p style="font-size: 0.85rem; color: var(--text-muted);">
           ¿Seguro que quieres borrar la tarea
           <strong>"{{ taskTitle }}"</strong>?
-          Esta acción no se puede deshacer.
+          <br> Esta acción no se puede deshacer.
         </p>
       </div>
       <div class="modal-footer">

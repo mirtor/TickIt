@@ -6,7 +6,7 @@
       </div>
       <div class="modal-body">
         <!-- Tipo -->
-        <div class="auth-tabs" style="justify-content: flex-start; margin-bottom: 0.75rem;">
+        <div class="auth-tabs">
           <button
             type="button"
             class="auth-tab"

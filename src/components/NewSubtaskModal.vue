@@ -1,16 +1,16 @@
 <template>
   <div class="modal-backdrop" @click.self="onCancel">
     <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">
+      <div class="modal-header" style="display: flex;">
+        <div class="modal-title" style="display: inline-block; flex: 1;">
           {{ isEdit ? "Editar subtarea" : "Nueva subtarea" }}
         </div>
         <button
           class="btn btn-outline"
-          style="font-size: 0.7rem; padding: 0.35rem 0.6rem"
+          style="font-size: 0.7rem; padding: 0.35rem 0.6rem; display: inline-block;"
           @click="onCancel"
         >
-          Cerrar
+          X
         </button>
       </div>
 
@@ -59,22 +59,27 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-outline" @click="onCancel">
-          Cancelar
-        </button>
-
         <!-- Botón borrar solo en modo edición -->
         <button
           v-if="isEdit"
-          class="btn btn-outline"
-          style="border-color: #fecaca; color: #b91c1c; margin-right: auto;"
+          class="icon-btn icon-btn-danger"
+          style="display: inline-block;"
           @click="onDelete"
+          title="Borrar tarea"
         >
-          Eliminar subtarea
+          <img
+            src="/deleteIcon.svg"
+            alt="Borrar tarea"
+            class="task-card-icon"
+          />
         </button>
 
-        <button class="btn btn-primary" @click="onSubmit">
-          {{ isEdit ? "Guardar cambios" : "Añadir subtarea" }}
+        <button class="btn btn-outline" @click="onCancel" style="display: inline-block;">
+          Cancelar
+        </button>
+
+        <button class="btn btn-primary" @click="onSubmit" style="display: inline-block; flex: 3;">
+          {{ isEdit ? "Guardar" : "Añadir subtarea" }}
         </button>
       </div>
     </div>
