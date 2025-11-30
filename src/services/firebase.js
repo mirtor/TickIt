@@ -4,13 +4,21 @@ import { getFirestore } from "firebase/firestore";
 // ⚠️ Si quieres usar analytics luego, lo vemos después.
 // Por ahora me centro en Auth + Firestore.
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
+
+  apiKey: "AIzaSyBHIO0cp77OX4QPFM6KtfGpVpIcGVvBKeg",
+
+  authDomain: "apptasks-49a0a.firebaseapp.com",
+
+  projectId: "apptasks-49a0a",
+
+  storageBucket: "apptasks-49a0a.firebasestorage.app",
+
+  messagingSenderId: "27791176050",
+
+  appId: "1:27791176050:web:7bdbf73fc803d17c686deb",
+
+  measurementId: "G-5T1LSE3HK2"
+
 };
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
