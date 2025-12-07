@@ -217,7 +217,7 @@
   </div>
 
 
-  <div class="version"><p>Versión 07.12.25</p></div>
+  <div class="version"><p>Versión 08.12.25</p></div>
 </template>
 
 <script setup lang="ts">
@@ -226,11 +226,11 @@ import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
 
-import NewTaskNoteModel from "../components/NewTaskNoteModel.vue";
-import TaskDetailModal from "../components/TaskDetailModal.vue";
-import NewSubtaskModal from "../components/NewSubtaskModal.vue";
-import DeleteTaskModal from "../components/DeleteTaskModal.vue";
-import EditNoteModal from "../components/EditNoteModal.vue";
+import NewTaskNoteModel from "@/components/NewTaskNoteModel.vue";
+import TaskDetailModal from "@/components/TaskDetailModal.vue";
+import NewSubtaskModal from "@/components/NewSubtaskModal.vue";
+import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
+import EditNoteModal from "@/components/EditNoteModal.vue";
 
 const router = useRouter();
 const { user, logout } = useAuth();
