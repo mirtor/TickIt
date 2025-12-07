@@ -33,3 +33,6 @@ Thumbs.db
 # Artefactos accidentales de TS/Vue
 **/*.vue.js
 **/*.vue.d.ts
+
+# Secrets (local only)
+secret.ts
