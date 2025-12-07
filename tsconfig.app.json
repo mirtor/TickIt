@@ -1,5 +1,7 @@
 {
   "compilerOptions": {
+    "noEmit": true,
+
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
@@ -21,5 +23,5 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue"
-  ]
+, "src/services/firebase.js"  ]
 }

@@ -7,13 +7,7 @@
       </div>
       <div class="task-header-user">
         <span v-if="user?.email">{{ user.email }}</span>
-        <button
-          class="btn btn-outline"
-          style="font-size: 0.7rem; padding: 0.4rem 0.7rem"
-          @click="onLogout"
-        >
-          Cerrar sesión
-        </button>
+        <button class="btn btn-outline task-logout-btn" @click="onLogout">Cerrar sesión</button>
       </div>
     </header>
 
@@ -21,112 +15,51 @@
 
     <!-- Contenido principal -->
     <main class="task-main">
-      <button
-        class="btn btn-primary btn-fixed"
-        @click="showNewTaskModal = true"
-        title="Añadir tarea"
-      >
+      <!-- Botón nueva tarea/nota -->
+      <button class="btn btn-primary btn-fixed"  @click.stop.prevent="openNewItemModal" title="Añadir tarea">
         <img src="/addIcon.svg" alt="Editar" class="task-card-icon" />
       </button>
 
-      <div class="auth-tabs" style="justify-content: flex-start; margin-bottom: 0.75rem;">
-        <button
-          class="auth-tab task-button"
-          :class="{ 'auth-tab--active': activeTab === 'tasks' }"
-          @click="activeTab = 'tasks'"
-        >
-          Tareas
-        </button>
-
-        <button
-          class="auth-tab note-button"
-          :class="{ 'auth-tab--active': activeTab === 'notes' }"
-          @click="activeTab = 'notes'"
-        >
-          Notas
-        </button>
+      <!-- Pestaña Tareas/Notas -->
+      <div class="auth-tabs tabs-row">
+        <button class="auth-tab task-button" :class="{ 'auth-tab--active': activeTab === 'tasks' }" @click="activeTab = 'tasks'">Tareas</button>
+        <button class="auth-tab note-button" :class="{ 'auth-tab--active': activeTab === 'notes' }" @click="activeTab = 'notes'" >Notas</button>
       </div>
 
 
-      <!-- Tareas -->
+      <!-- Contenido Tareas -->
       <section v-if="activeTab === 'tasks'">
         <!-- Tareas activas -->
         <section v-if="activeTasks.length" class="task-list-section">
+
           <h2 class="task-list-title">Tareas activas</h2>
+
           <div class="task-list">
-            <article
-              v-for="task in activeTasks"
-              :key="task.id"
-              class="task-card"
-              @click="onTaskCardClick(task)"
-            >
-
-              <div class="task-card-icons" @click.stop>
-                 <!-- Reordenar -->
-                <button
-                  class="icon-btn"
-                  @click="moveItemUp(task)"
-                  title="Mover arriba"
-                >
-                  ↑
-                </button>
-                <button
-                  class="icon-btn"
-                  @click="moveItemDown(task)"
-                  title="Mover abajo"
-                >
-                  ↓
-                </button>
-
+            <article v-for="task in activeTasks" :key="task.id" class="task-card" @click="onTaskCardClick(task)" >
+              <!-- Botones Reordenar -->
+              <div class="task-card-icons" @click.stop>         
+                <button class="icon-btn" @click="moveItemUp(task)" title="Mover arriba" >↑</button>
+                <button class="icon-btn" @click="moveItemDown(task)" title="Mover abajo" >↓</button>
               </div>
 
+              <!-- Lista tareas -->
               <div class="task-card-main">
-                <h3 class="task-card-title">
-                  {{ task.title }}
-                </h3>
+                <h3 class="task-card-title">{{ task.title }}</h3>
 
-                <p
-                  v-if="task.subtasks && task.subtasks.length"
-                  class="task-card-subtitle"
-                >
-                  {{ task.subtasks.filter((s) => !s.done).length }} subtareas pendientes
+                <p v-if="task.subtasks && task.subtasks.length" class="task-card-subtitle" >
+                  {{ task.subtasks.filter((s) => s.done).length }}/{{ task.subtasks.length }} completadas
                 </p>
               </div>
 
+              <!-- Botones edición -->
               <div class="task-card-icons" @click.stop>
                 <!-- Borrar tarea -->
-                <button
-                  class="icon-btn icon-btn-danger"
-                  @click="openDeleteModal(task)"
-                  title="Borrar tarea"
-                >
-                  <img
-                    src="/deleteIcon.svg"
-                    alt="Borrar tarea"
-                    class="task-card-icon"
-                  />
+                <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
+                  <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon"/>
                 </button>
-
-                <!-- Añadir subtarea 
-                <button
-                  class="icon-btn"
-                  @click="openSubtaskModal(task)"
-                  title="Añadir subtarea"
-                >
-                  <img
-                    src="/subtaskIcon.svg"
-                    alt="Añadir subtarea"
-                    class="task-card-icon"
-                  />
-                </button>
-                -->
 
                 <!-- Editar tarea -->
-                <button
-                  class="icon-btn"
-                  @click="openEditTaskModal(task)"
-                  title="Editar tarea"
-                >
+                <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea">
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
 
@@ -136,64 +69,35 @@
         </section>
 
         <!-- Tareas completadas -->
-        <section v-if="completedTasks.length" class="task-list-section" style="margin-top: 1.25rem">
-          <h2 class="task-list-title">Tareas completadas</h2>
-          <div class="task-list">
-            <article
-              v-for="task in completedTasks"
-              :key="task.id"
-              class="task-card"
-              @click="onTaskCardClick(task)"
-            >
-              <div class="task-card-icons" @click.stop>
-                <!-- Reordenar -->
-                <button
-                  class="icon-btn"
-                  @click="moveItemUp(task)"
-                  title="Mover arriba"
-                >
-                  ↑
-                </button>
-                <button
-                  class="icon-btn"
-                  @click="moveItemDown(task)"
-                  title="Mover abajo"
-                >
-                  ↓
-                </button>
+        <section v-if="completedTasks.length" class="task-list-section completed-section">
 
+          <h2 class="task-list-title">Tareas completadas</h2>
+
+          <div class="task-list">
+            <article v-for="task in completedTasks" :key="task.id" class="task-card" @click="onTaskCardClick(task)" >
+              <!-- Botones Reordenar -->
+              <div class="task-card-icons" @click.stop>
+                <button  class="icon-btn" @click="moveItemUp(task)" title="Mover arriba">↑</button>
+                <button class="icon-btn" @click="moveItemDown(task)" title="Mover abajo">↓</button>
               </div>
 
               <div class="task-card-main">
-                <h3 class="task-card-title" style="text-decoration: line-through; color: #6b7280">
-                  {{ task.title }}
-                </h3>
+                <h3 class="task-card-title task-card-title--completed">{{ task.title }}</h3>
                 <p class="task-card-subtitle">
-                  Todas las subtareas completadas
+                  {{ task.subtasks?.length ?? 0 }} subtareas completadas
                 </p>
               </div>
 
+              <!-- Botones edición -->
               <div class="task-card-icons" @click.stop>
                 <!-- Editar tarea -->
-                <button
-                  class="icon-btn"
-                  @click="openEditTaskModal(task)"
-                  title="Editar tarea"
-                >
+                <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea" >
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
 
                 <!-- Borrar tarea -->
-                <button
-                  class="icon-btn icon-btn-danger"
-                  @click="openDeleteModal(task)"
-                  title="Borrar tarea"
-                >
-                  <img
-                    src="/deleteIcon.svg"
-                    alt="Borrar tarea"
-                    class="task-card-icon"
-                  />
+                <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
+                  <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon" />
                 </button>
               </div>
             </article>
@@ -202,36 +106,19 @@
 
       </section>
 
-      <!-- Notas -->
+      <!-- Contenido Notas -->
       <section v-if="activeTab === 'notes'" class="task-list-section">
         <h2 class="task-list-title">Notas</h2>
 
         <div class="task-list">
-          <article
-            v-for="note in notes"
-            :key="note.id"
-            class="task-card"
-            @click="openEditTaskModal(note)"
-          >
-              <div class="task-card-icons" @click.stop>
-                <!-- Reordenar -->
-                <button
-                  class="icon-btn"
-                  @click="moveItemUp(note)"
-                  title="Mover arriba"
-                >
-                  ↑
-                </button>
-                <button
-                  class="icon-btn"
-                  @click="moveItemDown(note)"
-                  title="Mover abajo"
-                >
-                  ↓
-                </button>
+          <article v-for="note in notes" :key="note.id" class="task-card task-card--note" @click="openEditNoteModal(note)">
+            <!-- Botones Reordenar -->
+            <div class="task-card-icons" @click.stop>
+              <button class="icon-btn" @click="moveItemUp(note)" title="Mover arriba">↑</button>
+              <button class="icon-btn" @click="moveItemDown(note)" title="Mover abajo">↓</button>
+            </div>
 
-              </div>
-
+            <!-- Lista Notas -->
             <div class="task-card-main">
               
               <h3 class="task-card-title">
@@ -239,14 +126,12 @@
               </h3>
 
               <!-- Descripción como lista de puntos por salto de línea -->
-              <ul
-                v-if="note.description"
-                style="margin: 0.3rem 0 0; padding-left: 1rem; font-size: 0.8rem; color: var(--text-muted);"
-              >
+              <ul v-if="note.description" class="note-description-list" >
                 <li
                   v-for="(line, idx) in note.description
                     .split('\n')
-                    .filter((l) => l.trim().length)"
+                    .filter((l) => l.trim().length)
+                    .slice(0, 4)"
                   :key="idx"
                 >
                   {{ line }}
@@ -254,27 +139,16 @@
               </ul>
             </div>
 
+            <!-- Botones edición -->
             <div class="task-card-icons" @click.stop>
               <!-- Editar nota -->
-              <button
-                class="icon-btn"
-                @click="openEditTaskModal(note)"
-                title="Editar nota"
-              >
+              <button class="icon-btn" @click="openEditNoteModal(note)" title="Editar nota">
                 <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
               </button>
 
               <!-- Borrar nota -->
-              <button
-                class="icon-btn icon-btn-danger"
-                @click="openDeleteModal(note)"
-                title="Borrar nota"
-              >
-                <img
-                  src="/deleteIcon.svg"
-                  alt="Borrar nota"
-                  class="task-card-icon"
-                />
+              <button class="icon-btn icon-btn-danger" @click="openDeleteModal(note)" title="Borrar nota">
+                <img src="/deleteIcon.svg" alt="Borrar nota" class="task-card-icon"/>
               </button>
             </div>
 
@@ -285,17 +159,17 @@
 
       
       <!-- Si no hay tareas -->
-      <section v-if="!activeTasks.length && !completedTasks.length" style="margin-top: 2rem; text-align: center">
-        <p style="font-size: 0.85rem; color: var(--text-muted);">
+      <section v-if="!activeTasks.length && !completedTasks.length" class="empty-state">
+        <p class="empty-state-text">
           Todavía no tienes tareas. Pulsa <strong>“Nueva tarea”</strong> para crear la primera.
         </p>
       </section>
     </main>
 
     <!-- Modal: nueva tarea -->
-    <NewTaskModal
-      v-if="showNewTaskModal"
-      @close="showNewTaskModal = false"
+    <NewTaskNoteModel
+      v-if="showNewTaskNoteModel"
+      @close="showNewTaskNoteModel = false"
       @create="handleCreateTask"
     />
 
@@ -308,11 +182,12 @@
       @uncheck-all="handleUncheckAll"
       @open-new-subtask="() => { if (selectedTask) openSubtaskModal(selectedTask) }"
       @edit-subtask="handleEditSubtask"
+      @update-title="handleUpdateTaskTitle"
     />
 
     <!-- Modal: nueva subtarea -->
     <NewSubtaskModal
-      v-if="subtaskModalTask"
+      v-if="subtaskModalTask && !showNewTaskNoteModel"
       :taskTitle="subtaskModalTask.title"
       :mode="editingSubtaskId ? 'edit' : 'create'"
       :initialSubtask="editingSubtaskId && subtaskModalTask
@@ -332,17 +207,17 @@
     />
 
     <!-- Modal: editar tareas -->
-    <EditTaskModal
+    <EditNoteModal
       v-if="itemBeingEdited"
       :task="itemBeingEdited"
-      @cancel="closeEditTaskModal"
+      @cancel="closeEditNoteModal"
       @save="handleSaveEditedTask"
     />
 
   </div>
 
 
-  <div class="version"><p>Versión 30.11.25</p></div>
+  <div class="version"><p>Versión 07.12.25</p></div>
 </template>
 
 <script setup lang="ts">
@@ -351,11 +226,11 @@ import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
 
-import NewTaskModal from "../components/NewTaskModal.vue";
+import NewTaskNoteModel from "../components/NewTaskNoteModel.vue";
 import TaskDetailModal from "../components/TaskDetailModal.vue";
 import NewSubtaskModal from "../components/NewSubtaskModal.vue";
 import DeleteTaskModal from "../components/DeleteTaskModal.vue";
-import EditTaskModal from "../components/EditTaskModal.vue";
+import EditNoteModal from "../components/EditNoteModal.vue";
 
 const router = useRouter();
 const { user, logout } = useAuth();
@@ -376,7 +251,7 @@ const {
 } = useTasks();
 
 // Estado de modales
-const showNewTaskModal = ref(false);
+const showNewTaskNoteModel = ref(false);
 const selectedTask = ref<Task | null>(null);      // modal lista subtareas
 const editingSubtaskId = ref<string | null>(null);
 const subtaskModalTask = ref<Task | null>(null);  // modal nueva subtarea
@@ -419,11 +294,29 @@ watch(
 );
 
 
+function openNewItemModal() {
+  // cerrar modales relacionados con tareas/subtareas
+  selectedTask.value = null;
+  closeSubtaskModal();
+
+  // cerrar borrado/edición
+  showDeleteModal.value = false;
+  taskToDelete.value = null;
+  itemBeingEdited.value = null;
+
+  // abrir nuevo elemento
+  showNewTaskNoteModel.value = true;
+}
+
+async function handleUpdateTaskTitle(title: string) {
+  if (!selectedTask.value) return;
+  await updateTask(selectedTask.value.id, { title });
+}
 
 // Crear tarea
 async function handleCreateTask(payload: { title: string; type: TaskType; description?: string }) {
   await createTask(payload);
-  showNewTaskModal.value = false;
+  showNewTaskNoteModel.value = false;
 }
 
 // Click en tarjeta: solo abre detalle si tiene subtareas
@@ -483,11 +376,11 @@ async function onLogout() {
   router.push({ name: "login" });
 }
 
-function openEditTaskModal(task: Task) {
+function openEditNoteModal(task: Task) {
   itemBeingEdited.value = task;
 }
 
-function closeEditTaskModal() {
+function closeEditNoteModal() {
   itemBeingEdited.value = null;
 }
 
@@ -584,3 +477,96 @@ async function moveItemDown(item: Task) {
 
 
 </script>
+
+<style scoped>
+/* Header logout button (antes inline) */
+.task-logout-btn {
+  font-size: 0.7rem;
+  padding: 0.4rem 0.7rem;
+}
+
+/* Tabs row (antes inline en el contenedor) */
+.tabs-row {
+  justify-content: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+/* Separación de sección completadas */
+.completed-section {
+  margin-top: 1.25rem;
+}
+
+/* Título completado (antes inline) */
+.task-card-title--completed {
+  text-decoration: line-through;
+  color: #6b7280;
+}
+
+/* Lista de descripción de notas (antes inline) */
+.note-description-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Empty state (antes inline) */
+.empty-state {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.empty-state-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Solo afecta a tarjetas de NOTAS */
+.task-card--note {
+  max-height: 150px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* opcional: efecto de “fade” abajo para indicar que hay más */
+.task-card--note::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 36px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,1)
+  );
+  pointer-events: none;
+}
+
+/* Asegura que la tarjeta no centre los iconos verticalmente */
+.task-card {
+  align-items: flex-start;
+}
+
+/* Por si alguna columna de iconos hereda centrado del layout */
+.task-card-icons {
+  align-self: flex-start;
+}
+
+.task-card--note .task-card-title {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.task-card--note .note-description-list {
+  margin: 0.3rem 0 0;
+  padding-left: 1rem;
+  font-size: 0.8rem;
+  text-align: justify;
+  color: var(--text-muted);
+}
+
+
+
+</style>

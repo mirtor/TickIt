@@ -7,54 +7,35 @@
       <div class="modal-body">
         <!-- Tipo -->
         <div class="auth-tabs">
-          <button
-            type="button"
-            class="auth-tab"
-            :class="{ 'auth-tab--active': type === 'task' }"
-            @click="type = 'task'"
-          >
-            Tarea
-          </button>
-          <button
-            type="button"
-            class="auth-tab"
-            :class="{ 'auth-tab--active': type === 'note' }"
-            @click="type = 'note'"
-          >
-            Nota
-          </button>
+          <button type="button" class="auth-tab" :class="{ 'auth-tab--active': type === 'task' }" @click="type = 'task'">Tarea</button>
+          <button type="button" class="auth-tab" :class="{ 'auth-tab--active': type === 'note' }" @click="type = 'note'">Nota</button>
         </div>
 
         <!-- Título -->
         <div class="form-group">
-          <label class="form-label">Título</label>
-          <input
-            v-model="title"
-            type="text"
-            class="input"
-            placeholder="Nombre de la tarea o nota"
-          />
+          <label class="form-label form-label--with-counter">
+            <span>Título</span>
+            <span class="title-counter-inline">{{ title.length }}/40</span>
+          </label>
+          <input v-model="title" type="text" class="input" placeholder="Nombre de la tarea o nota" maxlength="40" />
         </div>
+
 
         <!-- Descripción solo si es nota -->
         <div v-if="type === 'note'" class="form-group">
           <label class="form-label">Descripción</label>
-          <textarea
+          <BulletListInput
             v-model="description"
-            rows="4"
-            style="resize: vertical; border-radius: 12px; border: 1px solid var(--border); padding: 0.6rem 0.7rem; font-size: 0.8rem; background-color: #f9fafb; outline: none;"
-            placeholder="Escribe tu nota. Cada salto de línea se mostrará como un punto."
-          ></textarea>
+            placeholder="Escribe tu nota… (doble salto = separador)"
+          />
         </div>
       </div>
+
       <div class="modal-footer">
-        <button class="btn btn-outline" @click="onCancel">
-          Cancelar
-        </button>
-        <button class="btn btn-primary" @click="onCreate">
-          Crear
-        </button>
+        <button class="btn btn-outline" @click="onCancel">Cancelar</button>
+        <button class="btn btn-primary" @click="onCreate">Crear</button>
       </div>
+
     </div>
   </div>
 </template>
@@ -62,6 +43,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import type { TaskType } from "@/composables/useTasks";
+import BulletListInput from "@/components/Specials/BulletListInput.vue";
 
 const emit = defineEmits<{
   (e: "close"): void;
@@ -84,7 +66,7 @@ function onCancel() {
 }
 
 function onCreate() {
-  const t = title.value.trim();
+  const t = title.value.trim().slice(0, 40);
   if (!t) return;
 
   emit("create", {
@@ -97,3 +79,26 @@ function onCreate() {
   emit("close");
 }
 </script>
+
+<style scoped>
+.new_note{
+  resize: vertical; 
+  border-radius: 12px; 
+  border: 1px solid var(--border); 
+  padding: 0.6rem 0.7rem; 
+  font-size: 0.8rem; 
+  background-color: #f9fafb; 
+  outline: none;
+}
+.form-label--with-counter {
+  display: flex;
+  align-items: center;
+  justify-content: initial;
+  gap: 10px;
+}
+
+.title-counter-inline {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+</style>

@@ -202,6 +202,7 @@ body {
   position: fixed;
   bottom: 20px;
   right: 20px;
+  z-index: 999;
 }
 
 .btn-outline {
@@ -366,7 +367,7 @@ body {
   padding: 0.1rem 0.1rem;
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   cursor: pointer;
@@ -430,6 +431,8 @@ body {
   flex-direction: column;
   gap: 0.3rem;
   align-items: flex-end;
+  justify-content: flex-start;
+  align-self: flex-start;
 }
 
 .icon-btn {
@@ -467,20 +470,27 @@ body {
   justify-content: center;
   padding: 1.2rem;
   z-index: 50;
+  overflow: hidden;
 }
 
 .modal {
   width: 100%;
-  max-width: 420px;
+  max-width: 1000px;
   background-color: #ffffff;
   border-radius: 18px;
   padding: 1.3rem 1.4rem;
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.35);
+  max-height: 90vh;
+  width: min(520px, 92vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
 }
 
 .modal-header {
   text-align: center;
+  flex: 0 0 auto;
 }
 
 .modal-title {
@@ -494,6 +504,10 @@ body {
   flex-direction: column;
   gap: 0.75rem;
   text-align: center;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 1rem;
 }
 
 .modal-footer {
@@ -561,7 +575,7 @@ body {
   margin-top: 0.1rem;
   font-size: 0.7rem;
   color: var(--text-muted);
-  text-align: left;
+  text-align: justify;
 }
 
 .subtask-link {

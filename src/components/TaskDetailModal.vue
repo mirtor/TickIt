@@ -1,43 +1,66 @@
 <template>
   <div class="modal-backdrop" @click.self="onClose">
-    <div class="modal">
+    <div class="modal task-detail-modal">
 
-      <div class="modal-header">
-
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-
-          <div style="display: inline-block; flex: 1;">
-            <!-- Título -->
-            <div class="modal-title" style="text-align: left;">
-              {{ task.title }}
-            </div>
-
-            <!-- Pndt / Compl -->
-            <div class="task-toolbar-counts">
-              {{ activeSubtasks.length }} pendientes ·
-              {{ completedSubtasks.length }} completadas
-            </div>
-
+      <div class="modal-header task-detail-header">
+        <!-- Zona título -->
+        <div class="task-detail-title-area">
+          <div v-if="!isEditingTitle" class="modal-title task-detail-title">
+            {{ task.title }}
           </div>
 
+          <div v-else class="task-detail-title-edit">
+            <input
+              v-model="localTitle"
+              type="text"
+              class="input task-detail-title-input"
+              maxlength="40"
+            />
+            <div class="title-counter-inline">
+              {{ localTitle.length }}/40
+            </div>
+          </div>
+
+          <div class="task-toolbar-counts">
+            {{ activeSubtasks.length }} pendientes ·
+            {{ completedSubtasks.length }} completadas
+          </div>
+        </div>
+
+        <!-- Acciones header derecha -->
+        <div class="task-detail-header-actions">
           <button
-            class="btn btn-outline"
-            style="font-size: 0.7rem; padding: 0.35rem 0.6rem; font-weight: bold;"
+            class="btn btn-outline task-detail-close-btn"
             @click="onClose"
+            title="Cerrar"
           >
             X
-          </button> 
+          </button>
 
+          <button
+            class="icon-btn task-detail-edit-title-btn"
+            @click="onToggleEditTitle"
+            :title="isEditingTitle ? 'Guardar título' : 'Editar título'"
+          >
+            <img
+              v-if="!isEditingTitle"
+              src="/editIcon.svg"
+              alt="Editar"
+              class="task-card-icon"
+            />
+            <!-- Si no tienes checkIcon.svg, usa el fallback de texto -->
+            <span v-else class="check-fallback">✓</span>
+          </button>
         </div>
       </div>
 
+      <div class="modal-body task-detail-body">
 
-      <div class="modal-body">
-        
         <!-- Subtareas pendientes -->
         <div class="subtasks-section" v-if="activeSubtasks.length">
-          <hr>
+          <hr class="soft-hr">
           <div class="subtasks-title">Subtareas pendientes</div>
+
           <div class="subtasks-list">
             <div
               v-for="st in activeSubtasks"
@@ -50,17 +73,21 @@
                 :checked="st.done"
                 @change="emit('toggle-subtask', st.id)"
               />
+
               <div class="subtask-main">
                 <div class="subtask-title">
                   {{ st.title }}
                 </div>
+
+                <!-- META: Fecha + enlace en la misma línea -->
                 <div class="subtask-meta">
-                  <span v-if="st.dueDate" class="subtask-date">
-                    Fecha: {{ st.dueDate }}
-                  </span>
-                  <span v-if="st.dueDate && st.link"> · </span>
-                  <span v-if="st.link">
+                  <div class="subtask-meta-row">
+                    <span v-if="st.dueDate" class="subtask-date">
+                      Fecha: {{ st.dueDate }}
+                    </span>
+
                     <a
+                      v-if="st.link"
                       class="subtask-link"
                       :href="st.link"
                       target="_blank"
@@ -68,15 +95,18 @@
                     >
                       enlace
                     </a>
-                  </span>
-                  <span v-if="st.description">
-                    <span v-if="st.dueDate || st.link"> · </span>
+                  </div>
+
+                  <!-- Descripción debajo -->
+                  <div
+                    v-if="st.description"
+                    class="subtask-description"
+                  >
                     {{ st.description }}
-                  </span>
+                  </div>
                 </div>
               </div>
 
-              <!-- Acciones subtarea -->
               <div class="subtask-actions">
                 <button
                   class="icon-btn"
@@ -85,14 +115,12 @@
                 >
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
-
               </div>
-
             </div>
           </div>
         </div>
 
-        <!-- New task -->
+        <!-- Botón nueva subtarea -->
         <button
           class="btn btn-primary"
           @click="emit('open-new-subtask')"
@@ -102,12 +130,10 @@
         </button>
 
         <!-- Subtareas completadas -->
-        <div
-          class="subtasks-section"
-          v-if="completedSubtasks.length"
-        >
-          <hr>
+        <div class="subtasks-section" v-if="completedSubtasks.length">
+          <hr class="soft-hr">
           <div class="subtasks-title">Subtareas completadas</div>
+
           <div class="subtasks-list">
             <div
               v-for="st in completedSubtasks"
@@ -120,17 +146,20 @@
                 :checked="st.done"
                 @change="emit('toggle-subtask', st.id)"
               />
+
               <div class="subtask-main">
                 <div class="subtask-title subtask-title--completed">
                   {{ st.title }}
                 </div>
+
                 <div class="subtask-meta">
-                  <span v-if="st.dueDate" class="subtask-date">
-                    Fecha: {{ st.dueDate }}
-                  </span>
-                  <span v-if="st.dueDate && st.link"> · </span>
-                  <span v-if="st.link">
+                  <div class="subtask-meta-row">
+                    <span v-if="st.dueDate" class="subtask-date">
+                      Fecha: {{ st.dueDate }}
+                    </span>
+
                     <a
+                      v-if="st.link"
                       class="subtask-link"
                       :href="st.link"
                       target="_blank"
@@ -138,15 +167,17 @@
                     >
                       enlace
                     </a>
-                  </span>
-                  <span v-if="st.description">
-                    <span v-if="st.dueDate || st.link"> · </span>
+                  </div>
+
+                  <div
+                    v-if="st.description"
+                    class="subtask-description"
+                  >
                     {{ st.description }}
-                  </span>
+                  </div>
                 </div>
               </div>
 
-              <!-- Acciones subtarea -->
               <div class="subtask-actions">
                 <button
                   class="icon-btn"
@@ -155,17 +186,15 @@
                 >
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
-
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Desmarcar -->
+        <!-- Desmarcar todas -->
         <button
           v-if="task.subtasks && task.subtasks.length"
-          class="btn btn-outline btn-full"
-          style="font-size: 0.75rem"
+          class="btn btn-outline btn-full btn-uncheck-all"
           @click="emit('uncheck-all')"
         >
           Desmarcar todas las subtareas
@@ -176,13 +205,12 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Task } from "@/composables/useTasks";
 
-const props = defineProps<{
-  task: Task;
-}>();
+const props = defineProps<{ task: Task }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
@@ -190,6 +218,7 @@ const emit = defineEmits<{
   (e: "uncheck-all"): void;
   (e: "open-new-subtask"): void;
   (e: "edit-subtask", id: string): void;
+  (e: "update-title", title: string): void;
 }>();
 
 const activeSubtasks = computed(() =>
@@ -200,16 +229,173 @@ const completedSubtasks = computed(() =>
   props.task.subtasks?.filter((s) => s.done) ?? []
 );
 
+const isEditingTitle = ref(false);
+const localTitle = ref(props.task.title);
+
+watch(
+  () => props.task.title,
+  (t) => {
+    if (!isEditingTitle.value) {
+      localTitle.value = t;
+    }
+  }
+);
+
 function onClose() {
   emit("close");
 }
+
+function onToggleEditTitle() {
+  if (!isEditingTitle.value) {
+    // entrar en modo edición
+    isEditingTitle.value = true;
+    localTitle.value = props.task.title;
+    return;
+  }
+
+  // guardar
+  const t = localTitle.value.trim().slice(0, 40);
+  if (!t) return;
+
+  emit("update-title", t);
+  isEditingTitle.value = false;
+}
 </script>
 
+
 <style scoped>
+.task-detail-modal .modal-header {
+  position: relative;
+}
+
+.task-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.task-detail-title-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-detail-title {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.task-detail-title-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.task-detail-title-input {
+  flex: 1;
+}
+
+.title-counter-inline {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.task-detail-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.task-detail-close-btn {
+  font-size: 0.7rem;
+  padding: 0.35rem 0.6rem;
+  font-weight: bold;
+}
+
+.task-detail-edit-title-btn {
+  align-self: flex-end;
+}
+
+.check-fallback {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* HR sutil */
+.soft-hr {
+  opacity: 0.35;
+  margin: 0.35rem 0 0.5rem;
+}
+
+/* Acciones subtarea */
 .subtask-actions {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   margin-left: 0.25rem;
 }
+
+/* Meta layout sin “·” */
+.subtask-meta {
+  margin-top: 0.15rem;
+}
+
+.subtask-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem; /* "pequeño espacio" */
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.subtask-date {
+  white-space: nowrap;
+}
+
+.subtask-link {
+  text-decoration: underline;
+}
+
+/* Descripción debajo, justificada y con fade */
+.subtask-description {
+  position: relative;
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: justify;
+
+  max-height: 2.6rem; /* ~2 líneas */
+  overflow: hidden;
+}
+
+.subtask-description::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.2rem;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,1)
+  );
+  pointer-events: none;
+}
+
+/* Botón desmarcar sin inline */
+.btn-uncheck-all {
+  font-size: 0.75rem;
+}
+
+/* Ajuste general del body si quieres evitar overflow raro */
+.task-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
 </style>
+

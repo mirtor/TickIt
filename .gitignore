@@ -29,3 +29,7 @@ pnpm-debug.log*
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Artefactos accidentales de TS/Vue
+**/*.vue.js
+**/*.vue.d.ts
