@@ -23,5 +23,5 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue"
-, "src/services/firebase.js"  ]
+, "src/services/firebase.js", "src/composables/useAuth.js", "src/composables/useTasks.js"  ]
 }

@@ -216,8 +216,6 @@
 
   </div>
 
-
-  <div class="version"><p>Versión 08.12.25</p></div>
 </template>
 
 <script setup lang="ts">
