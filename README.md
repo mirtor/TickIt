@@ -144,6 +144,14 @@ The codebase is intentionally straightforward to allow easy extension.
 
 ---
 
-## License
+## License & brand
+> Note: The TickIt logo and brand assets are not intended for reuse in public clones.
 
-Personal / educational use.
+### Code
+This project’s code is licensed under the **MIT License** (see `LICENSE`).
+
+### Brand
+The **TickIt** name, logo, and visual identity are part of the project’s branding.  
+If you fork and publish a derivative app, please replace the branding so it doesn’t
+look like an official TickIt release (see `BRAND-NOTICE.md`).
+
