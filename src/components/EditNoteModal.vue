@@ -244,8 +244,8 @@ function onSave() {
   display: block;
   height: 1px;
   width: 100%;
-  background: var(--border);
-  opacity: 0.5;
+  background: var(--primary);
+  opacity: 1;
 }
 
 /* Empty text */

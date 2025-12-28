@@ -58,10 +58,10 @@
                   <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon"/>
                 </button>
 
-                <!-- Editar tarea -->
+                <!-- Editar tarea 
                 <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea">
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-                </button>
+                </button>-->
 
               </div>
             </article>
@@ -90,10 +90,10 @@
 
               <!-- Botones edición -->
               <div class="task-card-icons" @click.stop>
-                <!-- Editar tarea -->
+                <!-- Editar tarea 
                 <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea" >
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-                </button>
+                </button>-->
 
                 <!-- Borrar tarea -->
                 <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
@@ -141,10 +141,10 @@
 
             <!-- Botones edición -->
             <div class="task-card-icons" @click.stop>
-              <!-- Editar nota -->
+              <!-- Editar nota 
               <button class="icon-btn" @click="openEditNoteModal(note)" title="Editar nota">
                 <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-              </button>
+              </button>-->
 
               <!-- Borrar nota -->
               <button class="icon-btn icon-btn-danger" @click="openDeleteModal(note)" title="Borrar nota">
