@@ -20,6 +20,21 @@
         <img src="/addIcon.svg" alt="Editar" class="task-card-icon" />
       </button>
 
+      <!-- Notificaciones de compartido -->
+      <div v-for="n in shareNotifications" :key="n.id" class="share-notification">
+        <div class="share-notification-text">
+          El usuario <strong>{{ n.fromEmail }}</strong>
+          ha compartido contigo la
+          <strong>{{ n.itemType === "task" ? "tarea" : "nota" }}</strong>
+          “{{ n.itemTitle }}”
+        </div>
+
+        <button class="btn btn-outline btn-small" @click="acceptShareNotification(n.id)">
+          Aceptar
+        </button>
+      </div>
+
+
       <!-- Pestaña Tareas/Notas -->
       <div class="auth-tabs tabs-row">
         <button class="auth-tab task-button" :class="{ 'auth-tab--active': activeTab === 'tasks' }" @click="activeTab = 'tasks'">Tareas</button>
@@ -57,6 +72,11 @@
                 <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
                   <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon"/>
                 </button>
+
+                <!-- Indicador compartido -->
+                <img v-if="isItemShared(task) && isOwnedByMe(task)" src="/shareIcon.svg" alt="Compartida por mí" class="task-card-icon task-card-icon--shared"/>
+
+                <img v-else-if="isSharedWithMe(task)" src="/sharedWithMeIcon.svg" alt="Compartida conmigo" class="task-card-icon task-card-icon--shared"/>
 
                 <!-- Editar tarea 
                 <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea">
@@ -99,6 +119,10 @@
                 <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
                   <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon" />
                 </button>
+  
+                <!-- Indicador compartido -->
+                <img v-if="isItemShared(task)" src="/shareIcon.svg" alt="Compartida"class="task-card-icon task-card-icon--shared"/>
+
               </div>
             </article>
           </div>
@@ -150,6 +174,10 @@
               <button class="icon-btn icon-btn-danger" @click="openDeleteModal(note)" title="Borrar nota">
                 <img src="/deleteIcon.svg" alt="Borrar nota" class="task-card-icon"/>
               </button>
+
+              <!-- Indicador compartido -->
+              <img v-if="isItemShared(note)" src="/shareIcon.svg" alt="Compartida" class="task-card-icon task-card-icon--shared"/>
+
             </div>
 
           </article>
@@ -474,9 +502,74 @@ async function moveItemDown(item: Task) {
 
 
 
+function isItemShared(item: Task): boolean {
+  // TODO: más adelante vendrá de members.length > 0
+  return false;
+}
+
+type ShareNotification = {
+  id: string;
+  fromEmail: string;
+  itemType: "task" | "note";
+  itemTitle: string;
+};
+
+const shareNotifications = ref<ShareNotification[]>([
+  // mock temporal
+  {
+    id: "1",
+    fromEmail: "usuario@email.com",
+    itemType: "task",
+    itemTitle: "Proyectos",
+  },
+]);
+
+function isOwnedByMe(item: Task): boolean {
+  return item.userId === user.value?.uid;
+}
+
+function isSharedWithMe(item: Task): boolean {
+  return !isOwnedByMe(item) && isItemShared(item);
+}
+
+
+
+function acceptShareNotification(id: string) {
+  shareNotifications.value = shareNotifications.value.filter(
+    (n) => n.id !== id
+  );
+}
+
+
 </script>
 
 <style scoped>
+.share-notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.share-notification-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.2rem;
+}
+
+.btn-small {
+  font-size: 0.7rem;
+  padding: 0.3rem 0.6rem;
+}
+
+
 /* Header logout button (antes inline) */
 .task-logout-btn {
   font-size: 0.7rem;
@@ -551,6 +644,12 @@ async function moveItemDown(item: Task) {
 .task-card-icons {
   align-self: flex-start;
 }
+
+.task-card-icon--shared {
+  margin-top: 0.25rem;
+  opacity: 0.75;
+}
+
 
 .task-card--note .task-card-title {
   overflow-wrap: anywhere;

@@ -1,10 +1,37 @@
 <template>
   <div class="modal-backdrop" @click.self="onCancel">
     <div class="modal">
-      <div class="modal-header">
-        <h2 class="modal-title">
-          Editar nota
-        </h2>
+      <div class="modal-header task-detail-header">
+        <!-- Zona título -->
+        <div class="task-detail-title-area">
+          <div class="modal-title task-detail-title">
+            Editar nota
+          </div>
+
+          <!--Compartidos-->
+          <div class="task-toolbar-counts">
+            <template v-if="isSharedWithMe(task)">
+              Compartido por {{ sharedByEmail }}
+            </template>
+
+            <template v-else-if="isItemShared(task)">
+              Compartida con {{ sharedCount }} personas
+            </template>
+
+            <template v-else>
+              Tarea privada
+            </template>
+          </div>
+
+        </div>
+
+        <!-- Acciones header derecha -->
+        <div class="task-detail-header-actions">
+          <button v-if="isOwnedByMe(task)" class="icon-btn" title="Compartir" @click="openShare">
+            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon"/>
+            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon"/>
+          </button>
+        </div>
       </div>
 
       <div class="modal-body">
@@ -91,6 +118,12 @@
       </div>
 
     </div>
+
+    <ShareTaskModal
+      v-if="showShare"
+      @cancel="showShare = false"
+    />
+
   </div>
 </template>
 
@@ -98,6 +131,8 @@
 import { computed, ref, watch } from "vue";
 import type { Task } from "@/composables/useTasks";
 import BulletListInput from "@/components/Specials/BulletListInput.vue";
+import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
+import { useAuth } from "@/composables/useAuth";
 
 const props = defineProps<{ task: Task }>();
 
@@ -170,9 +205,64 @@ function onSave() {
 
   isEditing.value = false;
 }
+
+
+const showShare = ref(false);
+const isShare = ref(false);
+const sharedCount = ref(0);
+const sharedByEmail = ref("usuario@email.com");
+const { user } = useAuth();
+
+//const isShare = computed(() => members.value.length > 0);
+//const sharedCount = computed(() => members.value.length);
+
+
+
+function openShare() {
+  showShare.value = true;
+}
+
+function isItemShared(item: Task): boolean {
+  // TODO: más adelante vendrá de members.length > 0
+  return false;
+}
+
+function isOwnedByMe(item: Task): boolean {
+  return item.userId === user.value?.uid;
+}
+
+function isSharedWithMe(item: Task): boolean {
+  return !isOwnedByMe(item) && isItemShared(item);
+}
+
+
+
 </script>
 
 <style scoped>
+  .task-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 10px;
+}
+.task-detail-title-area {
+  flex: 1;
+  min-width: 0;
+}
+.task-detail-title {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.task-detail-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+
 .form-label--with-counter {
   display: flex;
   align-items: center;

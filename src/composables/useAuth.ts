@@ -20,6 +20,8 @@ function initAuthListener() {
     initialized = true;
     onAuthStateChanged(auth, (firebaseUser) => {
         if (firebaseUser) {
+            console.log("UID LOGUEADO:", firebaseUser.uid);
+
             user.value = {
                 uid: firebaseUser.uid,
                 email: firebaseUser.email,
@@ -27,6 +29,7 @@ function initAuthListener() {
             };
         }
         else {
+            console.log("NO HAY USUARIO LOGUEADO");
             user.value = null;
         }
         loading.value = false;

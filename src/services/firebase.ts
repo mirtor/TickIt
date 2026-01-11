@@ -1,4 +1,8 @@
 // src/services/firebase.ts
+if (import.meta.env.DEV) {
+  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+}
+
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -17,21 +21,22 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// Init Firebase
+export const app = initializeApp(firebaseConfig);
 
-// App Check (web)
-if (import.meta.env.DEV) {
-  (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+// App Check SOLO en producción
+if (
+  import.meta.env.PROD &&
+  import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
+) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaEnterpriseProvider(
+      import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
+    ),
+    isTokenAutoRefreshEnabled: true,
+  });
 }
 
-export const appCheck = import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
-  ? initializeAppCheck(app, {
-      provider: new ReCaptchaEnterpriseProvider(
-        import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY
-      ),
-      isTokenAutoRefreshEnabled: true,
-    })
-  : undefined;
-
+// Auth & Firestore (siempre activos)
 export const auth = getAuth(app);
 export const db = getFirestore(app);

@@ -4,6 +4,21 @@
 
       <div class="modal-header task-detail-header">
         <!-- Zona título -->
+        <button
+          class="icon-btn"
+          @click="onToggleEditTitle"
+          :title="isEditingTitle ? 'Guardar título' : 'Editar título'"
+        >
+          <img
+            v-if="!isEditingTitle"
+            src="/editIcon.svg"
+            alt="Editar"
+            class="task-card-icon"
+          />
+          <!-- Si no tienes checkIcon.svg, usa el fallback de texto -->
+          <span v-else class="check-fallback">✓</span>
+        </button>
+
         <div class="task-detail-title-area">
           <div v-if="!isEditingTitle" class="modal-title task-detail-title">
             {{ task.title }}
@@ -25,6 +40,22 @@
             {{ activeSubtasks.length }} pendientes ·
             {{ completedSubtasks.length }} completadas
           </div>
+
+          <!--Compartidos-->
+          <div class="task-toolbar-counts">
+            <template v-if="isSharedWithMe(task)">
+              Compartido por {{ sharedByEmail }}
+            </template>
+
+            <template v-else-if="isItemShared(task)">
+              Compartida con {{ sharedCount }} personas
+            </template>
+
+            <template v-else>
+              Tarea privada
+            </template>
+          </div>
+
         </div>
 
         <!-- Acciones header derecha -->
@@ -37,20 +68,11 @@
             X
           </button>
 
-          <button
-            class="icon-btn task-detail-edit-title-btn"
-            @click="onToggleEditTitle"
-            :title="isEditingTitle ? 'Guardar título' : 'Editar título'"
-          >
-            <img
-              v-if="!isEditingTitle"
-              src="/editIcon.svg"
-              alt="Editar"
-              class="task-card-icon"
-            />
-            <!-- Si no tienes checkIcon.svg, usa el fallback de texto -->
-            <span v-else class="check-fallback">✓</span>
+          <button v-if="isOwnedByMe(task)" class="icon-btn" title="Compartir" @click="openShare">
+            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon"/>
+            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon"/>
           </button>
+
         </div>
       </div>
 
@@ -202,6 +224,12 @@
 
       </div>
     </div>
+
+    <ShareTaskModal
+      v-if="showShare"
+      @cancel="showShare = false"
+    />
+
   </div>
 </template>
 
@@ -209,6 +237,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { Task } from "@/composables/useTasks";
+import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
+import { useAuth } from "@/composables/useAuth";
 
 const props = defineProps<{ task: Task }>();
 
@@ -260,10 +290,47 @@ function onToggleEditTitle() {
   emit("update-title", t);
   isEditingTitle.value = false;
 }
+
+
+const showShare = ref(false);
+const isShare = ref(false);
+const sharedCount = ref(0);
+const sharedByEmail = ref("usuario@email.com");
+const { user } = useAuth();
+
+//const isShare = computed(() => members.value.length > 0);
+//const sharedCount = computed(() => members.value.length);
+
+function openShare() {
+  showShare.value = true;
+}
+
+function isItemShared(item: Task): boolean {
+  // TODO: más adelante vendrá de members.length > 0
+  return false;
+}
+
+function isOwnedByMe(item: Task): boolean {
+  return item.userId === user.value?.uid;
+}
+
+function isSharedWithMe(item: Task): boolean {
+  return !isOwnedByMe(item) && isItemShared(item);
+}
+
+
+
+
 </script>
 
 
 <style scoped>
+.task-detail-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .task-detail-modal .modal-header {
   position: relative;
 }
@@ -312,10 +379,6 @@ function onToggleEditTitle() {
   font-size: 0.7rem;
   padding: 0.35rem 0.6rem;
   font-weight: bold;
-}
-
-.task-detail-edit-title-btn {
-  align-self: flex-end;
 }
 
 .check-fallback {
