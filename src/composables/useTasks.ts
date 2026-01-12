@@ -1,16 +1,7 @@
 import { computed, ref, watch } from "vue";
 import { db } from "@/services/firebase";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  query,
-  Timestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
+import {addDoc, collection, deleteDoc, getDoc, doc, onSnapshot, query, Timestamp, updateDoc, where, collectionGroup,} from "firebase/firestore";
+
 import { useAuth } from "./useAuth";
 
 export type TaskType = "task" | "note";
@@ -71,48 +62,79 @@ function cleanUndefined<T extends Record<string, unknown>>(obj?: T) {
 export function useTasks() {
   const { user } = useAuth();
 
+  let unsubOwn: (() => void) | null = null;
+  let unsubShared: (() => void) | null = null;
+
   watch(
-    () => user.value?.uid,
-    (uid) => {
-      if (unsubscribe) {
-        unsubscribe();
-        unsubscribe = null;
+  () => user.value?.uid,
+  (uid) => {
+    // limpiar listeners previos
+    unsubOwn?.();
+    unsubShared?.();
+    unsubOwn = null;
+    unsubShared = null;
+
+    if (!uid) {
+      tasks.value = [];
+      return;
+    }
+
+    // TAREAS PROPIAS
+    const ownQuery = query(
+      collection(db, "tasks"),
+      where("userId", "==", uid)
+    );
+
+    unsubOwn = onSnapshot(ownQuery, (snap) => {
+      const own = snap.docs.map((d) => ({
+        ...(d.data() as Task),
+        id: d.id,
+      }));
+      mergeTasks(own);
+    });
+
+    // TAREAS COMPARTIDAS (por members)
+    const membersQuery = query(
+      collection(db, "tasks", "__dummy__", "members"), // solo para tipo
+      where("uid", "==", uid)
+    );
+
+    // Firestore NO permite esto directamente → usamos collectionGroup
+    const sharedQuery = query(
+      collectionGroup(db, "members"),
+      where("uid", "==", uid)
+    );
+
+    unsubShared = onSnapshot(sharedQuery, async (snap) => {
+      const taskIds = snap.docs.map((d) => d.ref.parent.parent?.id).filter(Boolean);
+
+      if (!taskIds.length) return;
+
+      const sharedTasks: Task[] = [];
+
+      for (const id of taskIds) {
+        const docRef = doc(db, "tasks", id!);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          sharedTasks.push({
+            ...(snap.data() as Task),
+            id: snap.id,
+          });
+        }
       }
 
-      if (!uid) {
-        tasks.value = [];
-        return;
-      }
+      mergeTasks(sharedTasks);
+    });
+  },
+  { immediate: true }
+);
 
-      const q = query(collection(db, "tasks"), where("userId", "==", uid));
-
-      unsubscribe = onSnapshot(q, (snapshot) => {
-        const raw: Task[] = snapshot.docs.map((d) => {
-          const data = d.data() as Partial<Task> & { subtasks?: unknown };
-
-          const type = (data.type ?? "task") as TaskType;
-          const subtasks = Array.isArray(data.subtasks) ? (data.subtasks as Subtask[]) : [];
-
-          return {
-            id: d.id,
-            userId: data.userId ?? uid,
-            title: data.title ?? "",
-            type,
-            description: data.description ?? (type === "note" ? "" : null),
-            completed: !!data.completed,
-            order: data.order ?? 0,
-            subtasks,
-            createdAt: data.createdAt,
-            updatedAt: data.updatedAt,
-          };
-        });
-
-        // orden estable por "order"
-        tasks.value = raw.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      });
-    },
-    { immediate: true }
-  );
+// Une tareas propias + compartidas sin duplicados
+function mergeTasks(incoming: Task[]) {
+  const map = new Map(tasks.value.map((t) => [t.id, t]));
+  incoming.forEach((t) => map.set(t.id, t));
+  tasks.value = Array.from(map.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+}
 
   // Separaciones
   const tasksOnly = computed(() => tasks.value.filter((t) => t.type === "task"));

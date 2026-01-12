@@ -121,7 +121,9 @@
 
     <ShareTaskModal
       v-if="showShare"
+      :task="props.task"
       @cancel="showShare = false"
+      @share="handleShare"
     />
 
   </div>
@@ -133,6 +135,7 @@ import type { Task } from "@/composables/useTasks";
 import BulletListInput from "@/components/Specials/BulletListInput.vue";
 import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
 import { useAuth } from "@/composables/useAuth";
+import { useSharing } from "@/composables/useSharing";
 
 const props = defineProps<{ task: Task }>();
 
@@ -141,8 +144,7 @@ const emit = defineEmits<{
   (e: "save", payload: { title: string; description?: string }): void;
 }>();
 
-// Este modal ya es solo para notas.
-// Si quieres blindarlo aún más, podrías lanzar un guard si task.type !== "note".
+// Este modal es solo para notas.
 const localTitle = ref(props.task.title);
 const localDescription = ref(props.task.description ?? "");
 
@@ -207,11 +209,14 @@ function onSave() {
 }
 
 
+
 const showShare = ref(false);
 const isShare = ref(false);
 const sharedCount = ref(0);
 const sharedByEmail = ref("usuario@email.com");
 const { user } = useAuth();
+const { shareItem, resolveEmailToUid } = useSharing();
+
 
 //const isShare = computed(() => members.value.length > 0);
 //const sharedCount = computed(() => members.value.length);
@@ -235,6 +240,16 @@ function isSharedWithMe(item: Task): boolean {
   return !isOwnedByMe(item) && isItemShared(item);
 }
 
+async function handleShare(email: string) {
+  const targetUid = await resolveEmailToUid(email);
+  if (!targetUid) {
+    alert("Usuario no encontrado");
+    return;
+  }
+
+  await shareItem(props.task, targetUid, email);
+  showShare.value = false;
+}
 
 
 </script>

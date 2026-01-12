@@ -2,7 +2,8 @@
 import { ref } from "vue";
 import { auth } from "@/services/firebase";
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, } from "firebase/auth";
-
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/services/firebase";
 
 type AuthUser = {
   uid: string;
@@ -15,26 +16,38 @@ const loading = ref(true);
 let initialized = false;
 
 function initAuthListener() {
-    if (initialized)
-        return;
-    initialized = true;
-    onAuthStateChanged(auth, (firebaseUser) => {
-        if (firebaseUser) {
-            console.log("UID LOGUEADO:", firebaseUser.uid);
+  if (initialized) return;
+  initialized = true;
 
-            user.value = {
-                uid: firebaseUser.uid,
-                email: firebaseUser.email,
-                displayName: firebaseUser.displayName,
-            };
-        }
-        else {
-            console.log("NO HAY USUARIO LOGUEADO");
-            user.value = null;
-        }
-        loading.value = false;
-    });
+  onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+      console.log("UID LOGUEADO:", firebaseUser.uid);
+
+      // Guardar / actualizar usuario en Firestore
+      await setDoc(
+        doc(db, "users", firebaseUser.uid),
+        {
+            email: firebaseUser.email,
+            uid: firebaseUser.uid, // Asegúrate de guardar el UID explícitamente
+            lastLogin: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      user.value = {
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
+      };
+    } else {
+      console.log("NO HAY USUARIO LOGUEADO");
+      user.value = null;
+    }
+
+    loading.value = false;
+  });
 }
+
 
 async function login(email: string, password: string) {
     await signInWithEmailAndPassword(auth, email, password);

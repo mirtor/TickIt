@@ -227,7 +227,9 @@
 
     <ShareTaskModal
       v-if="showShare"
+      :task="props.task"
       @cancel="showShare = false"
+      @share="handleShare"
     />
 
   </div>
@@ -239,6 +241,7 @@ import { computed, ref, watch } from "vue";
 import type { Task } from "@/composables/useTasks";
 import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
 import { useAuth } from "@/composables/useAuth";
+import { useSharing } from "@/composables/useSharing";
 
 const props = defineProps<{ task: Task }>();
 
@@ -297,6 +300,7 @@ const isShare = ref(false);
 const sharedCount = ref(0);
 const sharedByEmail = ref("usuario@email.com");
 const { user } = useAuth();
+const { shareItem, resolveEmailToUid } = useSharing();
 
 //const isShare = computed(() => members.value.length > 0);
 //const sharedCount = computed(() => members.value.length);
@@ -316,6 +320,17 @@ function isOwnedByMe(item: Task): boolean {
 
 function isSharedWithMe(item: Task): boolean {
   return !isOwnedByMe(item) && isItemShared(item);
+}
+
+async function handleShare(email: string) {
+  const targetUid = await resolveEmailToUid(email);
+  if (!targetUid) {
+    alert("Usuario no encontrado");
+    return;
+  }
+
+  await shareItem(props.task, targetUid, email);
+  showShare.value = false;
 }
 
 
