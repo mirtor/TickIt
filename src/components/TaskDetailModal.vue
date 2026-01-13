@@ -44,13 +44,11 @@
           <!--Compartidos-->
           <div class="task-toolbar-counts">
             <template v-if="isSharedWithMe(task)">
-              Compartido por {{ sharedByEmail }}
+              Tarea compartida conmigo
             </template>
-
-            <template v-else-if="isItemShared(task)">
-              Compartida con {{ sharedCount }} personas
+            <template v-else-if="isShare">
+              Esta tarea está compartida
             </template>
-
             <template v-else>
               Tarea privada
             </template>
@@ -60,13 +58,7 @@
 
         <!-- Acciones header derecha -->
         <div class="task-detail-header-actions">
-          <button
-            class="btn btn-outline task-detail-close-btn"
-            @click="onClose"
-            title="Cerrar"
-          >
-            X
-          </button>
+          <button class="btn btn-outline task-detail-close-btn" @click="onClose"title="Cerrar">X</button>
 
           <button v-if="isOwnedByMe(task)" class="icon-btn" title="Compartir" @click="openShare">
             <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon"/>
@@ -242,6 +234,9 @@ import type { Task } from "@/composables/useTasks";
 import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
 import { useAuth } from "@/composables/useAuth";
 import { useSharing } from "@/composables/useSharing";
+import { onMounted, onUnmounted } from "vue"; 
+import { collection, onSnapshot, query } from "firebase/firestore";
+import { db } from "@/services/firebase";
 
 const props = defineProps<{ task: Task }>();
 
@@ -296,22 +291,14 @@ function onToggleEditTitle() {
 
 
 const showShare = ref(false);
+let unsubMembers: (() => void) | null = null;
 const isShare = ref(false);
-const sharedCount = ref(0);
-const sharedByEmail = ref("usuario@email.com");
 const { user } = useAuth();
 const { shareItem, resolveEmailToUid } = useSharing();
 
-//const isShare = computed(() => members.value.length > 0);
-//const sharedCount = computed(() => members.value.length);
 
 function openShare() {
   showShare.value = true;
-}
-
-function isItemShared(item: Task): boolean {
-  // TODO: más adelante vendrá de members.length > 0
-  return false;
 }
 
 function isOwnedByMe(item: Task): boolean {
@@ -319,7 +306,7 @@ function isOwnedByMe(item: Task): boolean {
 }
 
 function isSharedWithMe(item: Task): boolean {
-  return !isOwnedByMe(item) && isItemShared(item);
+  return !isOwnedByMe(item);
 }
 
 async function handleShare(email: string) {
@@ -333,8 +320,20 @@ async function handleShare(email: string) {
   showShare.value = false;
 }
 
+onMounted(() => {
+  if (!isOwnedByMe(props.task)) {
+    isShare.value = true;
+    return;
+  }
+  const membersRef = collection(db, "tasks", props.task.id, "members");
+  unsubMembers = onSnapshot(membersRef, (snap) => {
+    isShare.value = !snap.empty;
+  }, (err) => console.debug("Tarea: Sin permisos para ver miembros."));
+});
 
-
+onUnmounted(() => {
+  if (unsubMembers) unsubMembers();
+});
 
 </script>
 

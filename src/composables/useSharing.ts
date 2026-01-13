@@ -1,18 +1,9 @@
 // src/composables/useSharing.ts
 import { db } from "@/services/firebase";
 import { useAuth } from "@/composables/useAuth";
-import {
-  doc,
-  setDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-  getDocs,
-  query,
-  where,
-  deleteDoc,
-} from "firebase/firestore";
+import { doc, setDoc, addDoc, collection, serverTimestamp, getDocs, query, where, deleteDoc,} from "firebase/firestore"; 
 import type { Task } from "@/composables/useTasks";
+import { updateDoc } from "firebase/firestore";
 
 export function useSharing() {
   const { user } = useAuth();
@@ -27,9 +18,7 @@ export function useSharing() {
     };
   }
 
-  /**
-   * Resolver email -> uid
-   */
+  // Resolver email -> uid
   async function resolveEmailToUid(email: string): Promise<string | null> {
     const q = query(
       collection(db, "users"),
@@ -42,9 +31,7 @@ export function useSharing() {
     return snap.docs[0].id;
   }
 
-  /**
-   * Compartir una tarea o nota con otro usuario
-   */
+  // Compartir una tarea o nota con otro usuario
   async function shareItem(
     item: Task,
     targetUid: string,
@@ -66,7 +53,7 @@ export function useSharing() {
             addedBy: currentUid,
             addedByEmail: currentEmail,
         }
-        );
+      );
 
     // Crear notificación
     await addDoc(
@@ -84,22 +71,15 @@ export function useSharing() {
     );
   }
 
-  /**
-   * Marcar notificación como leída
-   */
+  // Marcar notificación como leída
   async function markNotificationAsRead(notificationId: string) {
     const { uid: currentUid } = getCurrentUser();
+    const notifRef = doc(db, "users", currentUid, "notifications", notificationId);
 
-    await setDoc(
-      doc(db, "users", currentUid, "notifications", notificationId),
-      { read: true },
-      { merge: true }
-    );
+    await updateDoc(notifRef, { read: true });
   }
   
-    /**
-     * Obtener la lista de miembros de una tarea
-     */
+    // Obtener la lista de miembros de una tarea
     async function getTaskMembers(taskId: string) {
     const membersRef = collection(db, "tasks", taskId, "members");
     const snap = await getDocs(membersRef);
@@ -109,9 +89,7 @@ export function useSharing() {
     }));
     }
 
-    /**
-     * Dejar de compartir con un usuario
-     */
+    // Dejar de compartir con un usuario
     async function removeMember(taskId: string, targetUid: string) {
     const memberDocRef = doc(db, "tasks", taskId, "members", targetUid);
     await deleteDoc(memberDocRef);

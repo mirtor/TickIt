@@ -74,9 +74,7 @@
                 </button>
 
                 <!-- Indicador compartido -->
-                <img v-if="isItemShared(task) && isOwnedByMe(task)" src="/shareIcon.svg" alt="Compartida por mí" class="task-card-icon task-card-icon--shared"/>
-
-                <img v-else-if="isSharedWithMe(task)" src="/sharedWithMeIcon.svg" alt="Compartida conmigo" class="task-card-icon task-card-icon--shared"/>
+                <SharedIndicator :item="task" />
 
                 <!-- Editar tarea 
                 <button class="icon-btn" @click="openEditNoteModal(task)" title="Editar tarea">
@@ -121,7 +119,7 @@
                 </button>
   
                 <!-- Indicador compartido -->
-                <img v-if="isItemShared(task)" src="/shareIcon.svg" alt="Compartida"class="task-card-icon task-card-icon--shared"/>
+                <SharedIndicator :item="task" />
 
               </div>
             </article>
@@ -176,7 +174,7 @@
               </button>
 
               <!-- Indicador compartido -->
-              <img v-if="isItemShared(note)" src="/shareIcon.svg" alt="Compartida" class="task-card-icon task-card-icon--shared"/>
+              <SharedIndicator :item="note" />
 
             </div>
 
@@ -251,12 +249,14 @@ import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
+import { db } from "@/services/firebase"; import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, collectionGroup, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
 
 import NewTaskNoteModel from "@/components/NewTaskNoteModel.vue";
 import TaskDetailModal from "@/components/TaskDetailModal.vue";
 import NewSubtaskModal from "@/components/NewSubtaskModal.vue";
 import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
 import EditNoteModal from "@/components/EditNoteModal.vue";
+import SharedIndicator from "@/components/Specials/SharedIndicator.vue";
 
 const router = useRouter();
 const { user, logout } = useAuth();
@@ -503,8 +503,7 @@ async function moveItemDown(item: Task) {
 
 
 function isItemShared(item: Task): boolean {
-  // TODO: más adelante vendrá de members.length > 0
-  return false;
+  return item.userId !== user.value?.uid;
 }
 
 type ShareNotification = {
@@ -514,32 +513,49 @@ type ShareNotification = {
   itemTitle: string;
 };
 
-const shareNotifications = ref<ShareNotification[]>([
-  // mock temporal
-  {
-    id: "1",
-    fromEmail: "usuario@email.com",
-    itemType: "task",
-    itemTitle: "Proyectos",
-  },
-]);
+const shareNotifications = ref<any[]>([]);
 
 function isOwnedByMe(item: Task): boolean {
   return item.userId === user.value?.uid;
 }
 
 function isSharedWithMe(item: Task): boolean {
-  return !isOwnedByMe(item) && isItemShared(item);
+  return !isOwnedByMe(item);
 }
 
+// Listener de notificaciones reales
+watch(() => user.value?.uid, (uid) => {
+  if (!uid) {
+    shareNotifications.value = [];
+    return;
+  }
 
-
-function acceptShareNotification(id: string) {
-  shareNotifications.value = shareNotifications.value.filter(
-    (n) => n.id !== id
+  const q = query(
+    collection(db, "users", uid, "notifications"),
+    where("read", "==", false)
   );
-}
 
+  onSnapshot(q, (snap) => {
+    shareNotifications.value = snap.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+  });
+}, { immediate: true });
+
+// Función para aceptar compartida real
+async function acceptShareNotification(notificationId: string) {
+  if (!user.value) return;
+  try {
+    // Marcamos como leída en Firestore
+    const notifRef = doc(db, "users", user.value.uid, "notifications", notificationId);
+    await updateDoc(notifRef, { read: true });
+    
+    // La notificación desaparecerá sola por el onSnapshot
+  } catch (e) {
+    console.error("Error al aceptar invitación:", e);
+  }
+}
 
 </script>
 

@@ -28,7 +28,7 @@ function initAuthListener() {
         doc(db, "users", firebaseUser.uid),
         {
             email: firebaseUser.email,
-            uid: firebaseUser.uid, // Asegúrate de guardar el UID explícitamente
+            uid: firebaseUser.uid, 
             lastLogin: serverTimestamp(),
         },
         { merge: true }
