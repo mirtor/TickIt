@@ -4,17 +4,8 @@
 
       <div class="modal-header task-detail-header">
         <!-- Zona título -->
-        <button
-          class="icon-btn"
-          @click="onToggleEditTitle"
-          :title="isEditingTitle ? 'Guardar título' : 'Editar título'"
-        >
-          <img
-            v-if="!isEditingTitle"
-            src="/editIcon.svg"
-            alt="Editar"
-            class="task-card-icon"
-          />
+        <button v-if="props.isOwner" class="icon-btn" @click="onToggleEditTitle" :title="isEditingTitle ? 'Guardar título' : 'Editar título'">
+          <img v-if="!isEditingTitle" src="/editIcon.svg" alt="Editar" class="task-card-icon"/>
           <!-- Si no tienes checkIcon.svg, usa el fallback de texto -->
           <span v-else class="check-fallback">✓</span>
         </button>
@@ -122,109 +113,103 @@
               </div>
 
               <div class="subtask-actions">
-                <button
-                  class="icon-btn"
-                  @click="emit('edit-subtask', st.id)"
-                  title="Editar subtarea"
-                >
+                <button class="icon-btn" @click="emit('edit-subtask', st.id)" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'">
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Botón nueva subtarea -->
-        <button
-          class="btn btn-primary"
-          @click="emit('open-new-subtask')"
-          title="Añadir subtarea"
-        >
-          Nueva subtarea
-        </button>
-
-        <!-- Subtareas completadas -->
-        <div class="subtasks-section" v-if="completedSubtasks.length">
-          <hr class="soft-hr">
-          <div class="subtasks-title">Subtareas completadas</div>
-
-          <div class="subtasks-list">
-            <div
-              v-for="st in completedSubtasks"
-              :key="st.id"
-              class="subtask-row subtask-row--completed"
-            >
-              <input
-                class="subtask-checkbox"
-                type="checkbox"
-                :checked="st.done"
-                @change="emit('toggle-subtask', st.id)"
-              />
-
-              <div class="subtask-main">
-                <div class="subtask-title subtask-title--completed">
-                  {{ st.title }}
-                </div>
-
-                <div class="subtask-meta">
-                  <div class="subtask-meta-row">
-                    <span v-if="st.dueDate" class="subtask-date">
-                      Fecha: {{ st.dueDate }}
-                    </span>
-
-                    <a
-                      v-if="st.link"
-                      class="subtask-link"
-                      :href="st.link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      enlace
-                    </a>
-                  </div>
-
-                  <div
-                    v-if="st.description"
-                    class="subtask-description"
-                  >
-                    {{ st.description }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="subtask-actions">
-                <button
-                  class="icon-btn"
-                  @click="emit('edit-subtask', st.id)"
-                  title="Editar subtarea"
-                >
-                  <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-                </button>
               </div>
             </div>
           </div>
-        </div>
-
-        <!-- Desmarcar todas -->
-        <button
-          v-if="task.subtasks && task.subtasks.length"
-          class="btn btn-outline btn-full btn-uncheck-all"
-          @click="emit('uncheck-all')"
-        >
-          Desmarcar todas las subtareas
-        </button>
-
       </div>
+
+      <!-- Botón nueva subtarea -->
+      <button class="btn btn-primary" @click="emit('open-new-subtask')" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Añadir subtarea'">Nueva subtarea</button>
+
+
+      <!-- Subtareas completadas -->
+      <div class="subtasks-section" v-if="completedSubtasks.length">
+        <hr class="soft-hr">
+        <div class="subtasks-title">Subtareas completadas</div>
+
+        <div class="subtasks-list">
+          <div
+            v-for="st in completedSubtasks"
+            :key="st.id"
+            class="subtask-row subtask-row--completed"
+          >
+            <input
+              class="subtask-checkbox"
+              type="checkbox"
+              :checked="st.done"
+              @change="emit('toggle-subtask', st.id)"
+            />
+
+            <div class="subtask-main">
+              <div class="subtask-title subtask-title--completed">
+                {{ st.title }}
+              </div>
+
+              <div class="subtask-meta">
+                <div class="subtask-meta-row">
+                  <span v-if="st.dueDate" class="subtask-date">
+                    Fecha: {{ st.dueDate }}
+                  </span>
+
+                  <a
+                    v-if="st.link"
+                    class="subtask-link"
+                    :href="st.link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    enlace
+                  </a>
+                </div>
+
+                <div
+                  v-if="st.description"
+                  class="subtask-description"
+                >
+                  {{ st.description }}
+                </div>
+              </div>
+            </div>
+
+            <div class="subtask-actions">
+              <button
+                class="icon-btn"
+                @click="emit('edit-subtask', st.id)"
+                title="Editar subtarea"
+              >
+                <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Desmarcar todas -->
+      <button
+        v-if="task.subtasks && task.subtasks.length"
+        class="btn btn-outline btn-full btn-uncheck-all"
+        @click="emit('uncheck-all')"
+      >
+        Desmarcar todas las subtareas
+      </button>
+
+
     </div>
-
-    <ShareTaskModal
-      v-if="showShare"
-      :task="props.task"
-      @cancel="showShare = false"
-      @share="handleShare"
-    />
-
   </div>
+
+  <ShareTaskModal
+    v-if="showShare"
+    :task="props.task"
+    @cancel="showShare = false"
+    @share="handleShare"
+  />
+
+  
 </template>
 
 
@@ -238,7 +223,8 @@ import { onMounted, onUnmounted } from "vue";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/services/firebase";
 
-const props = defineProps<{ task: Task }>();
+const props = defineProps<{ task: Task; isLockedByOther: boolean; lockedByEmail: string | null; isOwner: boolean }>();
+
 
 const emit = defineEmits<{
   (e: "close"): void;

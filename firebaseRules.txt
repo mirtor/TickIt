@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /* ======================
+       TASKS
+    ====================== */
+    match /tasks/{taskId} {
+      // Simplificación extrema para diagnóstico:
+      allow read: if request.auth != null; 
+      
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid || 
+        exists(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid))
+      );
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    /* ======================
+       MEMBERS (Fijar esta regla)
+    ====================== */
+
+    // Esta es la regla que usa el collectionGroup
+    match /{path=**}/members/{docId} {
+      // Permitimos la lectura si:
+      // 1. El ID del documento es tu UID (acceso por ID)
+      // 2. O si el campo 'uid' dentro del documento es tu UID (acceso por query)
+      allow read: if request.auth != null && (
+        request.auth.uid == docId || 
+        resource.data.uid == request.auth.uid
+      );
+    }
+
+    // Regla para el acceso directo desde el Modal
+    match /tasks/{taskId}/members/{mId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == mId || 
+        get(/databases/$(database)/documents/tasks/$(taskId)).data.userId == request.auth.uid
+      );
+      allow write: if request.auth != null && 
+        get(/databases/$(database)/documents/tasks/$(taskId)).data.userId == request.auth.uid;
+    }
+
+    /* ======================
+       USERS & NOTIFICATIONS
+    ====================== */
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid}/notifications/{id} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null;
+    }
+  }
+}

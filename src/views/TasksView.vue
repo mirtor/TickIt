@@ -199,7 +199,7 @@
       @create="handleCreateTask"
     />
 
-    <!-- Modal: detalle de tarea (solo lista) -->
+    <!-- Modal: detalle de tarea (solo lista) 
     <TaskDetailModal
       v-if="selectedTask"
       :task="selectedTask"
@@ -209,7 +209,18 @@
       @open-new-subtask="() => { if (selectedTask) openSubtaskModal(selectedTask) }"
       @edit-subtask="handleEditSubtask"
       @update-title="handleUpdateTaskTitle"
+    />-->
+    <TaskDetailModal 
+      v-if="selectedTask" 
+      :task="selectedTask" 
+      :isLockedByOther="isLockedByOther" 
+      :lockedByEmail="lockedByEmail" 
+      :isOwner="isOwnerOfSelected" 
+      @close="selectedTask = null" @toggle-subtask="handleToggleSubtask" @uncheck-all="handleUncheckAll" @open-new-subtask="async () => { if (selectedTask) await openSubtaskModal(selectedTask) }" 
+      @edit-subtask="handleEditSubtask" @update-title="handleUpdateTaskTitle" 
     />
+
+
 
     <!-- Modal: nueva subtarea -->
     <NewSubtaskModal
@@ -245,7 +256,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed, watchEffect, unref  } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
@@ -258,23 +269,11 @@ import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
 import EditNoteModal from "@/components/EditNoteModal.vue";
 import SharedIndicator from "@/components/Specials/SharedIndicator.vue";
 
+import { useEditLock } from "@/composables/useEditLock";
+
 const router = useRouter();
 const { user, logout } = useAuth();
-const {
-  tasks,
-  tasksOnly,
-  notes,
-  activeTasks,
-  completedTasks,
-  createTask,
-  deleteTask,
-  addSubtask,
-  updateTask,
-  updateSubtask,
-  deleteSubtask,
-  toggleSubtask,
-  uncheckAllSubtasks,
-} = useTasks();
+const { tasks, tasksOnly, notes, activeTasks, completedTasks, createTask, deleteTask, addSubtask, updateTask, updateSubtask, deleteSubtask, toggleSubtask, uncheckAllSubtasks,} = useTasks();
 
 // Estado de modales
 const showNewTaskNoteModel = ref(false);
@@ -286,6 +285,13 @@ const taskToDelete = ref<Task | null>(null);
 const activeTab = ref<"tasks" | "notes">("tasks");
 const itemBeingEdited = ref<Task | null>(null);
  
+const selectedTaskLock = ref<ReturnType<typeof useEditLock> | null>(null);
+const isOwnerOfSelected = computed(() => !!selectedTask.value && selectedTask.value.userId === user.value?.uid);
+const isLockedByOther = computed(() => selectedTaskLock.value ? unref(selectedTaskLock.value.isLockedByOther) : false);
+const lockedByEmail = computed(() => selectedTaskLock.value ? unref(selectedTaskLock.value.lockedByEmail) : null);
+
+
+
 
 
 // Redirección si no hay usuario
@@ -319,6 +325,26 @@ watch(
   { deep: true }
 );
 
+// Crea y limpia listener del lock al cambiar selectedTask
+watch(() => selectedTask.value?.id, (id) => {
+  if (selectedTaskLock.value) { selectedTaskLock.value.dispose(); selectedTaskLock.value = null; }
+  if (!id) return;
+  const l = useEditLock(id);
+  l.startListener();
+  selectedTaskLock.value = l;
+}, { immediate: true });
+
+watchEffect(() => {
+  const l = selectedTaskLock.value;
+  if (!l) return;
+  const lost = !!subtaskModalTask.value && !unref(l.hasLock) && unref(l.isLockedByOther);
+  if (lost) {
+    subtaskModalTask.value = null;
+    editingSubtaskId.value = null;
+    selectedTask.value = null;
+  }
+});
+
 
 function openNewItemModal() {
   // cerrar modales relacionados con tareas/subtareas
@@ -351,10 +377,16 @@ function onTaskCardClick(task: Task) {
 }
 
 // Nueva subtarea (abrir modal)
-function openSubtaskModal(task: Task) {
+async function openSubtaskModal(task: Task) {
+  if (!isOwnerOfSelected.value) return;
+  const l = selectedTaskLock.value;
+  if (!l) return;
+  const ok = await l.acquire();
+  if (!ok) return;
   subtaskModalTask.value = task;
   editingSubtaskId.value = null;
 }
+
 
 
 // Acciones sobre subtareas (modal lista)
@@ -368,11 +400,18 @@ async function handleUncheckAll() {
   await uncheckAllSubtasks(selectedTask.value);
 }
 
-function handleEditSubtask(subtaskId: string) {
+async function handleEditSubtask(subtaskId: string) {
   if (!selectedTask.value) return;
+  if (!isOwnerOfSelected.value) return;
+  if (!selectedTaskLock.value) return;
+
+  const ok = await selectedTaskLock.value.acquire();
+  if (!ok) return;
+
   subtaskModalTask.value = selectedTask.value;
-  editingSubtaskId.value = subtaskId; // modo edición
+  editingSubtaskId.value = subtaskId;
 }
+
 
 
 // Borrar tarea
@@ -423,10 +462,12 @@ async function handleSaveEditedTask(payload: { title: string; description?: stri
   itemBeingEdited.value = null;
 }
 
-function closeSubtaskModal() {
+async function closeSubtaskModal() {
+  if (selectedTaskLock.value) await selectedTaskLock.value.release();
   subtaskModalTask.value = null;
   editingSubtaskId.value = null;
 }
+
 
 // Submit nueva subtarea o edición
 async function handleSubmitSubtask(payload: {

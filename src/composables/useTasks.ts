@@ -1,7 +1,6 @@
 import { computed, ref, watch } from "vue";
 import { db } from "@/services/firebase";
-import {addDoc, collection, deleteDoc, getDoc, doc, onSnapshot, query, Timestamp, updateDoc, where, collectionGroup,} from "firebase/firestore";
-
+import { addDoc, collection, deleteDoc, getDoc, doc, onSnapshot, query, Timestamp, updateDoc, where, collectionGroup } from "firebase/firestore";
 import { useAuth } from "./useAuth";
 
 export type TaskType = "task" | "note";
@@ -34,9 +33,7 @@ export type CreateTaskPayload = {
   description?: string;
 };
 
-export type TaskUpdatePayload = Partial<
-  Pick<Task, "title" | "type" | "description" | "completed" | "order" | "subtasks">
->;
+export type TaskUpdatePayload = Partial<Pick<Task, "title" | "type" | "description" | "completed" | "order" | "subtasks">>;
 
 export type SubtaskInput = {
   title: string;
@@ -49,7 +46,6 @@ export type SubtaskInput = {
 // Estado global reactivo
 const tasks = ref<Task[]>([]);
 
-/** Quita campos undefined para evitar error de Firestore */
 function cleanUndefined<T extends Record<string, unknown>>(obj?: T) {
   const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj || {})) {
@@ -62,87 +58,116 @@ export function useTasks() {
   const { user } = useAuth();
 
   let unsubOwn: (() => void) | null = null;
-  let unsubShared: (() => void) | null = null;
+  let unsubSharedMembers: (() => void) | null = null;
 
-  // Almacenes temporales para unir ambos flujos sin perder datos
+  // listeners por task compartida
+  const sharedTaskUnsubs = new Map<string, () => void>();
+
+  // caches locales
   let ownTasksLocal: Task[] = [];
-  let sharedTasksLocal: Task[] = [];
+  const sharedTasksMap = new Map<string, Task>();
 
   function syncFinalTasks() {
-    const map = new Map();
-    // Prioridad a las propias, luego añade/sobreescribe con compartidas
-    ownTasksLocal.forEach(t => map.set(t.id, t));
-    sharedTasksLocal.forEach(t => map.set(t.id, t));
-    
+    const map = new Map<string, Task>();
+    // prioridad: propias, luego compartidas (no debería haber colisión real, pero lo mantenemos estable)
+    ownTasksLocal.forEach((t) => map.set(t.id, t));
+    sharedTasksMap.forEach((t, id) => {
+      if (!map.has(id)) map.set(id, t);
+    });
+
     tasks.value = Array.from(map.values()).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  function clearSharedTaskListeners() {
+    sharedTaskUnsubs.forEach((u) => u());
+    sharedTaskUnsubs.clear();
+    sharedTasksMap.clear();
   }
 
   watch(
     () => user.value?.uid,
     (uid) => {
       unsubOwn?.();
-      unsubShared?.();
-      
+      unsubSharedMembers?.();
+      clearSharedTaskListeners();
+
       if (!uid) {
         tasks.value = [];
         ownTasksLocal = [];
-        sharedTasksLocal = [];
         return;
       }
 
-      // --- ESCUCHAR TAREAS PROPIAS ---
+      // --- PROPIAS (tiempo real) ---
       const ownQuery = query(collection(db, "tasks"), where("userId", "==", uid));
-      unsubOwn = onSnapshot(ownQuery, (snap) => {
-        ownTasksLocal = snap.docs.map(d => ({ ...(d.data() as Task), id: d.id }));
-        syncFinalTasks();
-      }, (err) => {
-        console.error("Error en tareas propias:", err);
-      });
-
-      // --- ESCUCHAR TAREAS COMPARTIDAS ---
-      const sharedQuery = query(collectionGroup(db, "members"), where("uid", "==", uid));
-      
-      unsubShared = onSnapshot(sharedQuery, async (snap) => {
-        const taskIds = snap.docs
-          .map(d => d.ref.parent.parent?.id)
-          .filter(Boolean) as string[];
-
-        if (taskIds.length === 0) {
-          sharedTasksLocal = [];
+      unsubOwn = onSnapshot(
+        ownQuery,
+        (snap) => {
+          ownTasksLocal = snap.docs.map((d) => ({ ...(d.data() as Task), id: d.id }));
           syncFinalTasks();
-          return;
-        }
+        },
+        (err) => console.error("Error en tareas propias:", err)
+      );
 
-        try {
+      // --- COMPARTIDAS: 1) escuchar MEMBERS, 2) por cada taskId escuchar TASK DOC (tiempo real) ---
+      const sharedMembersQuery = query(collectionGroup(db, "members"), where("uid", "==", uid));
 
-          const promises = taskIds.map(id => getDoc(doc(db, "tasks", id)));
-          const snapshots = await Promise.all(promises);
+      unsubSharedMembers = onSnapshot(
+        sharedMembersQuery,
+        (snap) => {
+          const nextIds = new Set<string>();
 
-          sharedTasksLocal = snapshots
-            .filter(s => s.exists())
-            .map(s => ({ ...(s.data() as Task), id: s.id }));
-            
+          for (const d of snap.docs) {
+            const taskId = d.ref.parent.parent?.id;
+            if (taskId) nextIds.add(taskId);
+          }
+
+          // quitar listeners de ids que ya no están
+          for (const existingId of Array.from(sharedTaskUnsubs.keys())) {
+            if (!nextIds.has(existingId)) {
+              sharedTaskUnsubs.get(existingId)?.();
+              sharedTaskUnsubs.delete(existingId);
+              sharedTasksMap.delete(existingId);
+            }
+          }
+
+          // añadir listeners nuevos
+          for (const id of Array.from(nextIds)) {
+            if (sharedTaskUnsubs.has(id)) continue;
+
+            const taskRef = doc(db, "tasks", id);
+            const unsub = onSnapshot(
+              taskRef,
+              (taskSnap) => {
+                if (!taskSnap.exists()) {
+                  sharedTasksMap.delete(id);
+                } else {
+                  sharedTasksMap.set(id, { ...(taskSnap.data() as Task), id: taskSnap.id });
+                }
+                syncFinalTasks();
+              },
+              (err) => console.error("Error escuchando task compartida:", id, err)
+            );
+
+            sharedTaskUnsubs.set(id, unsub);
+          }
+
           syncFinalTasks();
-        } catch (e) {
-          console.error("Error cargando detalles compartidos:", e);
-        }
-      }, (err) => {
-        console.error("Error en el listener de compartidas (Collection Group):", err);
-      });
+        },
+        (err) => console.error("Error en el listener de compartidas (Collection Group):", err)
+      );
     },
     { immediate: true }
   );
 
-  // --- COMPUTED PROPERTIES ---
   const tasksOnly = computed(() => tasks.value.filter((t) => t.type === "task"));
   const notes = computed(() => tasks.value.filter((t) => t.type === "note"));
   const activeTasks = computed(() => tasksOnly.value.filter((t) => !t.completed));
   const completedTasks = computed(() => tasksOnly.value.filter((t) => t.completed));
 
-  // --- MÉTODOS DE ACCIÓN ---
   async function createTask(payload: CreateTaskPayload) {
     if (!user.value) return;
     const now = Timestamp.now();
+
     await addDoc(collection(db, "tasks"), {
       userId: user.value.uid,
       title: payload.title,
@@ -157,10 +182,12 @@ export function useTasks() {
   }
 
   async function updateTask(taskId: string, payload: TaskUpdatePayload) {
+    const now = Timestamp.now();
     const cleaned = cleanUndefined(payload);
+
     await updateDoc(doc(db, "tasks", taskId), {
       ...cleaned,
-      updatedAt: Timestamp.now(),
+      updatedAt: now,
     });
   }
 
@@ -169,35 +196,45 @@ export function useTasks() {
   }
 
   async function addSubtask(task: Task, input: SubtaskInput) {
-    const newSub = {
+    const desc = input.description?.trim();
+    const link = input.link?.trim();
+    const due = input.dueDate?.trim();
+
+    const newSub: Subtask = {
       id: crypto.randomUUID(),
       title: input.title,
       done: !!input.done,
-      description: input.description?.trim() || undefined,
-      link: input.link?.trim() || undefined,
-      dueDate: input.dueDate?.trim() || undefined,
+      ...(desc ? { description: desc } : {}),
+      ...(link ? { link } : {}),
+      ...(due ? { dueDate: due } : {}),
     };
+
     const subtasks = [...(task.subtasks || []), newSub];
-    await updateTask(task.id, { subtasks, completed: subtasks.length > 0 && subtasks.every(s => s.done) });
+    const completed = subtasks.length > 0 && subtasks.every((s) => s.done);
+
+    await updateTask(task.id, { subtasks, completed });
   }
 
   async function updateSubtask(task: Task, subId: string, payload: Partial<Subtask>) {
-    const subtasks = task.subtasks.map(s => s.id === subId ? { ...s, ...cleanUndefined(payload) } : s);
-    await updateTask(task.id, { subtasks, completed: subtasks.every(s => s.done) });
+    const subtasks = task.subtasks.map((s) => (s.id === subId ? { ...s, ...cleanUndefined(payload) } : s));
+    const completed = subtasks.length > 0 && subtasks.every((s) => s.done);
+    await updateTask(task.id, { subtasks, completed });
   }
 
   async function deleteSubtask(task: Task, subId: string) {
-    const subtasks = task.subtasks.filter(s => s.id !== subId);
-    await updateTask(task.id, { subtasks, completed: subtasks.length > 0 && subtasks.every(s => s.done) });
+    const subtasks = task.subtasks.filter((s) => s.id !== subId);
+    const completed = subtasks.length > 0 && subtasks.every((s) => s.done);
+    await updateTask(task.id, { subtasks, completed });
   }
 
   async function toggleSubtask(task: Task, subId: string) {
-    const subtasks = task.subtasks.map(s => s.id === subId ? { ...s, done: !s.done } : s);
-    await updateTask(task.id, { subtasks, completed: subtasks.every(s => s.done) });
+    const subtasks = task.subtasks.map((s) => (s.id === subId ? { ...s, done: !s.done } : s));
+    const completed = subtasks.length > 0 && subtasks.every((s) => s.done);
+    await updateTask(task.id, { subtasks, completed });
   }
 
   async function uncheckAllSubtasks(task: Task) {
-    const subtasks = task.subtasks.map(s => ({ ...s, done: false }));
+    const subtasks = task.subtasks.map((s) => ({ ...s, done: false }));
     await updateTask(task.id, { subtasks, completed: false });
   }
 
