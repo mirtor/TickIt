@@ -4,9 +4,8 @@
 
       <div class="modal-header task-detail-header">
         <!-- Zona título -->
-        <button v-if="props.isOwner" class="icon-btn" @click="onToggleEditTitle" :title="isEditingTitle ? 'Guardar título' : 'Editar título'">
-          <img v-if="!isEditingTitle" src="/editIcon.svg" alt="Editar" class="task-card-icon"/>
-          <!-- Si no tienes checkIcon.svg, usa el fallback de texto -->
+        <button v-if="props.isRealOwner" class="icon-btn" @click="onToggleEditTitle" :title="isEditingTitle ? 'Guardar título' : 'Editar título'">
+          <img v-if="!isEditingTitle" src="/editIcon.svg" alt="Editar" class="task-card-icon" />
           <span v-else class="check-fallback">✓</span>
         </button>
 
@@ -51,13 +50,19 @@
         <div class="task-detail-header-actions">
           <button class="btn btn-outline task-detail-close-btn" @click="onClose"title="Cerrar">X</button>
 
-          <button v-if="isOwnedByMe(task)" class="icon-btn" title="Compartir" @click="openShare">
-            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon"/>
-            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon"/>
+          <button v-if="props.isRealOwner" class="icon-btn" title="Compartir" @click="openShare">
+            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon" />
+            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon" />
           </button>
+
 
         </div>
       </div>
+
+      <div v-if="props.isLockedByOther" class="edit-lock-banner">
+        Editando {{ props.lockedByEmail ? props.lockedByEmail : "otro usuario" }}…
+      </div>
+
 
       <div class="modal-body task-detail-body">
 
@@ -72,12 +77,7 @@
               :key="st.id"
               class="subtask-row"
             >
-              <input
-                class="subtask-checkbox"
-                type="checkbox"
-                :checked="st.done"
-                @change="emit('toggle-subtask', st.id)"
-              />
+              <input class="subtask-checkbox" type="checkbox" :checked="st.done" :disabled="!props.isOwner || props.isLockedByOther" @change="emit('toggle-subtask', st.id)" />
 
               <div class="subtask-main">
                 <div class="subtask-title">
@@ -116,6 +116,7 @@
                 <button class="icon-btn" @click="emit('edit-subtask', st.id)" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'">
                   <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
                 </button>
+
               </div>
 
               </div>
@@ -138,12 +139,8 @@
             :key="st.id"
             class="subtask-row subtask-row--completed"
           >
-            <input
-              class="subtask-checkbox"
-              type="checkbox"
-              :checked="st.done"
-              @change="emit('toggle-subtask', st.id)"
-            />
+            <input class="subtask-checkbox" type="checkbox" :checked="st.done" :disabled="!props.isOwner || props.isLockedByOther" @change="emit('toggle-subtask', st.id)" />
+
 
             <div class="subtask-main">
               <div class="subtask-title subtask-title--completed">
@@ -177,11 +174,7 @@
             </div>
 
             <div class="subtask-actions">
-              <button
-                class="icon-btn"
-                @click="emit('edit-subtask', st.id)"
-                title="Editar subtarea"
-              >
+              <button class="icon-btn" @click="emit('edit-subtask', st.id)" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'">
                 <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
               </button>
             </div>
@@ -223,7 +216,14 @@ import { onMounted, onUnmounted } from "vue";
 import { collection, onSnapshot, query } from "firebase/firestore";
 import { db } from "@/services/firebase";
 
-const props = defineProps<{ task: Task; isLockedByOther: boolean; lockedByEmail: string | null; isOwner: boolean }>();
+const props = defineProps<{
+  task: Task;
+  isLockedByOther: boolean;
+  lockedByEmail: string | null;
+  isOwner: boolean;
+  isRealOwner: boolean;
+}>();
+
 
 
 const emit = defineEmits<{
@@ -325,6 +325,14 @@ onUnmounted(() => {
 
 
 <style scoped>
+.edit-lock-banner {
+  color: var(--primary-soft);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem 0rem 0.6rem;
+  text-align: center;
+  font-weight: bold;
+}
+
 .task-detail-title-row {
   display: flex;
   align-items: center;

@@ -40,20 +40,17 @@ export function useSharing() {
     const { uid: currentUid, email: currentEmail } = getCurrentUser();
 
     // Crear member
-    await setDoc(
-        doc(db, "tasks", item.id, "members", targetUid),
-        {
-            uid: targetUid,
-            email: targetEmail,
-            role: "viewer",
-            canEdit: false,
-            canDelete: false,
-            canShare: false,
-            addedAt: serverTimestamp(),
-            addedBy: currentUid,
-            addedByEmail: currentEmail,
-        }
-      );
+    await setDoc(doc(db, "tasks", item.id, "members", targetUid), {
+      role: "editor",
+      canEdit: true,
+      canDelete: false,
+      canShare: false,
+      addedAt: serverTimestamp(),
+      addedBy: currentUid,
+      addedByEmail: currentEmail,
+      uid: targetUid,
+      email: targetEmail,
+    });
 
     // Crear notificación
     await addDoc(

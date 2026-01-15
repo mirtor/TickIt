@@ -2,19 +2,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+
     /* ======================
        TASKS
     ====================== */
     match /tasks/{taskId} {
-      // Simplificación extrema para diagnóstico:
-      allow read: if request.auth != null; 
-      
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null && (
-        resource.data.userId == request.auth.uid || 
+      allow read: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
         exists(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid))
       );
+
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+      allow update: if request.auth != null && (
+        resource.data.userId == request.auth.uid ||
+        (
+          exists(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid)).data.canEdit == true
+        )
+      );
+
       allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    match /tasks/{taskId}/locks/{lockId} {
+      function canEditTask() {
+        return get(/databases/$(database)/documents/tasks/$(taskId)).data.userId == request.auth.uid
+          || get(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid)).data.canEdit == true;
+      }
+
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/tasks/$(taskId)).data.userId == request.auth.uid
+        || exists(/databases/$(database)/documents/tasks/$(taskId)/members/$(request.auth.uid))
+      );
+
+      allow create, update: if request.auth != null && canEditTask() && request.resource.data.holderUid == request.auth.uid;
+
+      allow delete: if request.auth != null && canEditTask() && resource.data.holderUid == request.auth.uid;
     }
 
     /* ======================

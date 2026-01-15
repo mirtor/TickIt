@@ -1,6 +1,6 @@
 import { db } from "@/services/firebase";
 import { useAuth } from "@/composables/useAuth";
-import { doc, onSnapshot, runTransaction, serverTimestamp, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, serverTimestamp, Timestamp, deleteDoc, updateDoc, setDoc } from "firebase/firestore";
 import { ref } from "vue";
 
 const LOCK_TTL_MS = 60_000;
@@ -16,6 +16,7 @@ export function useEditLock(taskId: string) {
 
   let unsub: null | (() => void) = null;
   let hb: number | null = null;
+  let stopping = false;
 
   function startListener() {
     if (unsub) return;
@@ -26,6 +27,7 @@ export function useEditLock(taskId: string) {
         lockedByEmail.value = null;
         return;
       }
+
       const data = snap.data() as any;
       const now = Date.now();
       const exp = data.expiresAt?.toMillis?.() ?? 0;
@@ -50,6 +52,7 @@ export function useEditLock(taskId: string) {
 
   async function acquire(): Promise<boolean> {
     if (!user.value) return false;
+    stopping = false;
     startListener();
 
     const meUid = user.value.uid;
@@ -78,48 +81,49 @@ export function useEditLock(taskId: string) {
       return false;
     });
 
-    if (ok) {
-      if (!hb) {
-        hb = window.setInterval(async () => {
-          if (!hasLock.value || !user.value) return;
-          const now = Date.now();
-          const newExp = Timestamp.fromMillis(now + LOCK_TTL_MS);
-          try {
-            await runTransaction(db, async (tx) => {
-              const snap = await tx.get(lockRef);
-              if (!snap.exists()) return;
-              const data = snap.data() as any;
-              if (data.holderUid !== user.value!.uid) return;
-              tx.set(lockRef, { holderUid: user.value!.uid, holderEmail: user.value!.email ?? "", expiresAt: newExp, updatedAt: serverTimestamp() });
-            });
-          } catch {}
-        }, HEARTBEAT_MS);
-      }
+    if (ok && !hb) {
+      hb = window.setInterval(async () => {
+        if (stopping) return;
+        if (!user.value) return;
+        if (!hasLock.value) return;
+
+        const now = Date.now();
+        const newExp = Timestamp.fromMillis(now + LOCK_TTL_MS);
+
+        try {
+          // Evita transacción aquí: reduce conflictos y quita precondiciones de commit.
+          await updateDoc(lockRef, { expiresAt: newExp, updatedAt: serverTimestamp() });
+        } catch {
+          // Si falla (lock borrado, permisos, etc.), paramos heartbeat.
+          if (hb) {
+            window.clearInterval(hb);
+            hb = null;
+          }
+        }
+      }, HEARTBEAT_MS);
     }
 
     return ok;
   }
 
   async function release() {
-    if (!user.value) return;
+    stopping = true;
+
     if (hb) {
       window.clearInterval(hb);
       hb = null;
     }
-    if (!hasLock.value) return;
 
+    // Best-effort: delete directo (sin transaction) para evitar failed-precondition.
+    // La regla de Firestore debe impedir que borre otro que no sea holderUid.
     try {
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(lockRef);
-        if (!snap.exists()) return;
-        const data = snap.data() as any;
-        if (data.holderUid !== user.value!.uid) return;
-        tx.delete(lockRef);
-      });
+      await deleteDoc(lockRef);
     } catch {}
   }
 
   function dispose() {
+    stopping = true;
+
     if (hb) {
       window.clearInterval(hb);
       hb = null;

@@ -69,7 +69,7 @@
               <!-- Botones edición -->
               <div class="task-card-icons" @click.stop>
                 <!-- Borrar tarea -->
-                <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
+                <button v-if="task.userId === user?.uid" class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
                   <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon"/>
                 </button>
 
@@ -114,7 +114,7 @@
                 </button>-->
 
                 <!-- Borrar tarea -->
-                <button class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
+                <button v-if="task.userId === user?.uid" class="icon-btn icon-btn-danger" @click="openDeleteModal(task)" title="Borrar tarea">
                   <img src="/deleteIcon.svg" alt="Borrar tarea" class="task-card-icon" />
                 </button>
   
@@ -169,7 +169,7 @@
               </button>-->
 
               <!-- Borrar nota -->
-              <button class="icon-btn icon-btn-danger" @click="openDeleteModal(note)" title="Borrar nota">
+              <button v-if="note.userId === user?.uid" class="icon-btn icon-btn-danger" @click="openDeleteModal(note)" title="Borrar nota">
                 <img src="/deleteIcon.svg" alt="Borrar nota" class="task-card-icon"/>
               </button>
 
@@ -199,25 +199,19 @@
       @create="handleCreateTask"
     />
 
-    <!-- Modal: detalle de tarea (solo lista) 
     <TaskDetailModal
       v-if="selectedTask"
       :task="selectedTask"
+      :isLockedByOther="isLockedByOther"
+      :lockedByEmail="lockedByEmail"
+      :isOwner="canEditSelected"
+      :isRealOwner="isOwnerOfSelected"
       @close="selectedTask = null"
       @toggle-subtask="handleToggleSubtask"
       @uncheck-all="handleUncheckAll"
-      @open-new-subtask="() => { if (selectedTask) openSubtaskModal(selectedTask) }"
+      @open-new-subtask="async () => { if (selectedTask) await openSubtaskModal(selectedTask) }"
       @edit-subtask="handleEditSubtask"
       @update-title="handleUpdateTaskTitle"
-    />-->
-    <TaskDetailModal 
-      v-if="selectedTask" 
-      :task="selectedTask" 
-      :isLockedByOther="isLockedByOther" 
-      :lockedByEmail="lockedByEmail" 
-      :isOwner="isOwnerOfSelected" 
-      @close="selectedTask = null" @toggle-subtask="handleToggleSubtask" @uncheck-all="handleUncheckAll" @open-new-subtask="async () => { if (selectedTask) await openSubtaskModal(selectedTask) }" 
-      @edit-subtask="handleEditSubtask" @update-title="handleUpdateTaskTitle" 
     />
 
 
@@ -247,9 +241,16 @@
     <EditNoteModal
       v-if="itemBeingEdited"
       :task="itemBeingEdited"
+      :canEdit="canEditNote"
+      :isRealOwner="itemBeingEdited.userId === user?.uid"
+      :isLockedByOther="isNoteLockedByOther"
+      :lockedByEmail="noteLockedByEmail"
+      :acquireLock="acquireNoteLock"
+      :releaseLock="releaseNoteLock"
       @cancel="closeEditNoteModal"
       @save="handleSaveEditedTask"
     />
+
 
   </div>
 
@@ -260,7 +261,7 @@ import { ref, watch, computed, watchEffect, unref  } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useTasks, Task, TaskType  } from "@/composables/useTasks";
-import { db } from "@/services/firebase"; import { collection, query, where, onSnapshot, doc, updateDoc, getDoc, collectionGroup, setDoc, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/services/firebase"; import { collection, query, where, onSnapshot, doc, updateDoc, getDoc } from "firebase/firestore";
 
 import NewTaskNoteModel from "@/components/NewTaskNoteModel.vue";
 import TaskDetailModal from "@/components/TaskDetailModal.vue";
@@ -273,7 +274,7 @@ import { useEditLock } from "@/composables/useEditLock";
 
 const router = useRouter();
 const { user, logout } = useAuth();
-const { tasks, tasksOnly, notes, activeTasks, completedTasks, createTask, deleteTask, addSubtask, updateTask, updateSubtask, deleteSubtask, toggleSubtask, uncheckAllSubtasks,} = useTasks();
+const { tasks, notes, activeTasks, completedTasks, createTask, deleteTask, addSubtask, updateTask, updateSubtask, deleteSubtask, toggleSubtask, uncheckAllSubtasks,} = useTasks();
 
 // Estado de modales
 const showNewTaskNoteModel = ref(false);
@@ -287,11 +288,36 @@ const itemBeingEdited = ref<Task | null>(null);
  
 const selectedTaskLock = ref<ReturnType<typeof useEditLock> | null>(null);
 const isOwnerOfSelected = computed(() => !!selectedTask.value && selectedTask.value.userId === user.value?.uid);
+const canEditSelected = ref(false);
+let unsubMemberPerms: null | (() => void) = null;
 const isLockedByOther = computed(() => selectedTaskLock.value ? unref(selectedTaskLock.value.isLockedByOther) : false);
 const lockedByEmail = computed(() => selectedTaskLock.value ? unref(selectedTaskLock.value.lockedByEmail) : null);
 
+const noteLock = ref<ReturnType<typeof useEditLock> | null>(null);
+const canEditNote = ref(false);
+const isNoteLockedByOther = computed(() => noteLock.value ? unref(noteLock.value.isLockedByOther) : false);
+const noteLockedByEmail = computed(() => noteLock.value ? unref(noteLock.value.lockedByEmail) : null);
 
 
+async function computeCanEditForItem(item: Task): Promise<boolean> {
+  if (!user.value) return false;
+  if (item.userId === user.value.uid) return true;
+  const memberRef = doc(db, "tasks", item.id, "members", user.value.uid);
+  const snap = await getDoc(memberRef);
+  if (!snap.exists()) return false;
+  const data = snap.data() as any;
+  return data?.canEdit === true;
+}
+
+async function acquireNoteLock(): Promise<boolean> {
+  if (!noteLock.value) return false;
+  return await noteLock.value.acquire();
+}
+
+async function releaseNoteLock(): Promise<void> {
+  if (!noteLock.value) return;
+  await noteLock.value.release();
+}
 
 
 // Redirección si no hay usuario
@@ -321,22 +347,62 @@ watch(
       const u = newTasks.find((t) => t.id === taskToDelete.value?.id);
       if (u) taskToDelete.value = u;
     }
+
+    if (itemBeingEdited.value) {
+      const u = newTasks.find((t) => t.id === itemBeingEdited.value?.id);
+      if (u) itemBeingEdited.value = u;
+    }
   },
   { deep: true }
 );
-
-// Crea y limpia listener del lock al cambiar selectedTask
+// Crea y limpia listener del lock y del permiso al cambiar selectedTask
 watch(() => selectedTask.value?.id, (id) => {
-  if (selectedTaskLock.value) { selectedTaskLock.value.dispose(); selectedTaskLock.value = null; }
-  if (!id) return;
+  // limpiar lock anterior
+  if (selectedTaskLock.value) {
+    selectedTaskLock.value.dispose();
+    selectedTaskLock.value = null;
+  }
+
+  // limpiar perms anterior
+  if (unsubMemberPerms) {
+    unsubMemberPerms();
+    unsubMemberPerms = null;
+  }
+
+  canEditSelected.value = false;
+
+  if (!id || !user.value || !selectedTask.value) return;
+
+  // lock listener siempre (owner o miembro) para deshabilitar cuando otro edita
   const l = useEditLock(id);
   l.startListener();
   selectedTaskLock.value = l;
+
+  // si soy owner, puedo editar
+  if (selectedTask.value.userId === user.value.uid) {
+    canEditSelected.value = true;
+    return;
+  }
+
+  // si soy miembro: escuchar mi member doc en tiempo real
+  const memberRef = doc(db, "tasks", id, "members", user.value.uid);
+  unsubMemberPerms = onSnapshot(memberRef, (snap) => {
+    if (!snap.exists()) {
+      canEditSelected.value = false;
+      return;
+    }
+    const data = snap.data() as any;
+    canEditSelected.value = data?.canEdit === true;
+  }, () => {
+    canEditSelected.value = false;
+  });
 }, { immediate: true });
+
 
 watchEffect(() => {
   const l = selectedTaskLock.value;
   if (!l) return;
+
   const lost = !!subtaskModalTask.value && !unref(l.hasLock) && unref(l.isLockedByOther);
   if (lost) {
     subtaskModalTask.value = null;
@@ -344,6 +410,7 @@ watchEffect(() => {
     selectedTask.value = null;
   }
 });
+
 
 
 function openNewItemModal() {
@@ -378,13 +445,29 @@ function onTaskCardClick(task: Task) {
 
 // Nueva subtarea (abrir modal)
 async function openSubtaskModal(task: Task) {
-  if (!isOwnerOfSelected.value) return;
+  if (!canEditSelected.value) return;
   const l = selectedTaskLock.value;
   if (!l) return;
   const ok = await l.acquire();
   if (!ok) return;
   subtaskModalTask.value = task;
   editingSubtaskId.value = null;
+}
+
+
+async function computeCanEditForTask(taskId: string): Promise<boolean> {
+  if (!user.value || !selectedTask.value) return false;
+
+  // Si soy owner, puedo editar
+  if (selectedTask.value.userId === user.value.uid) return true;
+
+  // Si no soy owner, miro members/{myUid}.canEdit
+  const memberRef = doc(db, "tasks", taskId, "members", user.value.uid);
+  const snap = await getDoc(memberRef);
+  if (!snap.exists()) return false;
+
+  const data = snap.data() as any;
+  return data?.canEdit === true;
 }
 
 
@@ -402,7 +485,7 @@ async function handleUncheckAll() {
 
 async function handleEditSubtask(subtaskId: string) {
   if (!selectedTask.value) return;
-  if (!isOwnerOfSelected.value) return;
+  if (!canEditSelected.value) return;
   if (!selectedTaskLock.value) return;
 
   const ok = await selectedTaskLock.value.acquire();
@@ -441,11 +524,22 @@ async function onLogout() {
   router.push({ name: "login" });
 }
 
-function openEditNoteModal(task: Task) {
+async function openEditNoteModal(task: Task) {
   itemBeingEdited.value = task;
+
+  if (noteLock.value) { noteLock.value.dispose(); noteLock.value = null; }
+  canEditNote.value = false;
+
+  const l = useEditLock(task.id);
+  l.startListener();
+  noteLock.value = l;
+
+  try { canEditNote.value = await computeCanEditForItem(task); } catch { canEditNote.value = false; }
 }
 
-function closeEditNoteModal() {
+
+async function closeEditNoteModal() {
+  if (noteLock.value) { await noteLock.value.release(); noteLock.value.dispose(); noteLock.value = null; }
   itemBeingEdited.value = null;
 }
 
@@ -453,13 +547,9 @@ async function handleSaveEditedTask(payload: { title: string; description?: stri
   if (!itemBeingEdited.value) return;
   const t = itemBeingEdited.value;
 
-  await updateTask(t.id, {
-    title: payload.title,
-    // solo para notas
-    description: t.type === "note" ? payload.description ?? "" : undefined,
-  });
+  await updateTask(t.id, { title: payload.title, description: t.type === "note" ? payload.description ?? "" : undefined });
 
-  itemBeingEdited.value = null;
+  await closeEditNoteModal();
 }
 
 async function closeSubtaskModal() {

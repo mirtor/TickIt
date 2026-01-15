@@ -521,6 +521,7 @@ body {
 
 .subtasks-section {
   margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .subtasks-title {
@@ -528,6 +529,7 @@ body {
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 0.4rem;
+  text-align: center;
 }
 
 .subtasks-list {

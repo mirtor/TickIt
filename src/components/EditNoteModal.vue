@@ -2,195 +2,131 @@
   <div class="modal-backdrop" @click.self="onCancel">
     <div class="modal">
       <div class="modal-header task-detail-header">
-        <!-- Zona título -->
         <div class="task-detail-title-area">
-          <div class="modal-title task-detail-title">
-            Editar nota
-          </div>
+          <div class="modal-title task-detail-title">Editar nota</div>
 
-          <!--Compartidos-->
           <div class="task-toolbar-counts">
-            <template v-if="isSharedWithMe(task)">
-              Tarea compartida conmigo
-            </template>
-            <template v-else-if="isShare">
-              Esta tarea está compartida
-            </template>
-            <template v-else>
-              Tarea privada
-            </template>
+            <template v-if="isSharedWithMe(task)">Nota compartida conmigo</template>
+            <template v-else-if="isShare">Esta nota está compartida</template>
+            <template v-else>Nota privada</template>
           </div>
 
+          <div v-if="props.isLockedByOther" class="edit-lock-banner">
+            Editando {{ props.lockedByEmail ? props.lockedByEmail : "otro usuario" }}…
+          </div>
         </div>
 
-        <!-- Acciones header derecha -->
         <div class="task-detail-header-actions">
           <button v-if="isOwnedByMe(task)" class="icon-btn" title="Compartir" @click="openShare">
-            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon"/>
-            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon"/>
+            <img v-if="isShare" src="/shareIcon.svg" alt="Compartida" class="task-card-icon" />
+            <img v-else src="/noShareIcon.svg" alt="Privada" class="task-card-icon" />
           </button>
         </div>
       </div>
 
       <div class="modal-body">
-        <!-- TÍTULO -->
         <div class="form-group">
-          <label class="form-label form-label--with-counter">
-            <span>Título</span>
-            <span class="title-counter-inline">{{ localTitle.length }}/40</span>
-          </label>
+          <label class="form-label form-label--with-counter"><span>Título</span><span class="title-counter-inline">{{ localTitle.length }}/40</span></label>
 
-          <!-- Modo edición -->
-          <input
-            v-if="isEditing"
-            v-model="localTitle"
-            type="text"
-            class="input"
-            maxlength="40"
-          />
+          <input v-if="isEditing && props.isRealOwner" v-model="localTitle" type="text" class="input" maxlength="40" />
+          <div v-else class="title-readonly">{{ localTitle }}</div>
 
-          <!-- Modo lectura (seleccionable) -->
-          <div
-            v-else
-            class="title-readonly"
-          >
-            {{ localTitle }}
-          </div>
         </div>
 
-        <!-- DESCRIPCIÓN -->
         <div class="form-group">
           <label class="form-label">Descripción</label>
 
-          <!-- Modo edición -->
-          <BulletListInput
-            v-if="isEditing"
-            v-model="localDescription"
-            placeholder="Escribe tu nota… (doble salto = separador)"
-          />
+          <BulletListInput v-if="isEditing && (props.isRealOwner || props.canEdit)" v-model="localDescription" placeholder="Escribe tu nota… (doble salto = separador)" />
 
-          <!-- Modo lectura (seleccionable) -->
+
           <div v-else class="note-readonly">
             <ul class="note-readonly-list" v-if="readonlyParts.length">
               <template v-for="(p, idx) in readonlyParts" :key="idx">
-                <li
-                  v-if="p.type === 'text'"
-                  class="note-readonly-item"
-                >
-                  {{ p.value }}
-                </li>
-
-                <li
-                  v-else
-                  class="note-readonly-separator"
-                  aria-hidden="true"
-                >
-                  <span class="note-readonly-line"></span>
-                </li>
+                <li v-if="p.type === 'text'" class="note-readonly-item">{{ p.value }}</li>
+                <li v-else class="note-readonly-separator" aria-hidden="true"><span class="note-readonly-line"></span></li>
               </template>
             </ul>
-
-            <div v-else class="note-readonly-empty">
-              (Sin descripción)
-            </div>
+            <div v-else class="note-readonly-empty">(Sin descripción)</div>
           </div>
         </div>
       </div>
 
       <div class="modal-footer modal-footer--split">
         <div class="footer-left">
-          <button
-            class="btn"
-            :class="isEditing ? 'btn-primary' : 'btn-outline'"
-            @click="onToggleEditSave"
-          >
+          <button class="btn" :class="isEditing ? 'btn-primary' : 'btn-outline'" @click="onToggleEditSave" :disabled="(!(props.isRealOwner || props.canEdit) || props.isLockedByOther)" :title="!(props.isRealOwner || props.canEdit) ? 'No tienes permiso para editar' : (props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : '')">
             {{ isEditing ? "Guardar" : "Editar" }}
           </button>
         </div>
 
         <div class="footer-right">
-          <button class="btn btn-outline" @click="onCancel">
-            Cancelar
-          </button>
+          <button class="btn btn-outline" @click="onCancel">Cancelar</button>
         </div>
       </div>
-
     </div>
 
-    <ShareTaskModal
-      v-if="showShare"
-      :task="props.task"
-      @cancel="showShare = false"
-      @share="handleShare"
-    />
-
+    <ShareTaskModal v-if="showShare" :task="props.task" @cancel="showShare = false" @share="handleShare" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, onUnmounted } from "vue";
 import type { Task } from "@/composables/useTasks";
 import BulletListInput from "@/components/Specials/BulletListInput.vue";
 import ShareTaskModal from "@/components/Specials/ShareTaskModal.vue";
 import { useAuth } from "@/composables/useAuth";
 import { useSharing } from "@/composables/useSharing";
-import { onMounted, onUnmounted } from "vue";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/services/firebase";
 
-const props = defineProps<{ task: Task }>();
-
-const emit = defineEmits<{
-  (e: "cancel"): void;
-  (e: "save", payload: { title: string; description?: string }): void;
+const props = defineProps<{
+  task: Task;
+  canEdit: boolean;
+  isRealOwner: boolean;
+  isLockedByOther: boolean;
+  lockedByEmail: string | null;
+  acquireLock: () => Promise<boolean>;
+  releaseLock: () => Promise<void>;
 }>();
 
-// Este modal es solo para notas.
+const emit = defineEmits<{ (e: "cancel"): void; (e: "save", payload: { title: string; description?: string }): void }>();
+
 const localTitle = ref(props.task.title);
 const localDescription = ref(props.task.description ?? "");
-
-// Bloqueado por defecto
 const isEditing = ref(false);
 
-// Por si cambia la tarea mientras el modal está abierto
 watch(
   () => props.task,
   (t) => {
-    localTitle.value = t.title;
-    localDescription.value = t.description ?? "";
-    isEditing.value = false;
+    if (!isEditing.value) {
+      localTitle.value = t.title;
+      localDescription.value = t.description ?? "";
+    }
   },
   { deep: true }
 );
 
-// Construimos una vista readonly que respeta separadores por línea vacía
+
 const readonlyParts = computed(() => {
   const raw = (localDescription.value ?? "").split("\n");
-
-  // Si todo está vacío:
   if (!raw.some((l) => l.trim().length)) return [];
-
-  return raw.map((l) => {
-    if (!l.trim().length) {
-      return { type: "sep" as const, value: "" };
-    }
-    return { type: "text" as const, value: l };
-  });
+  return raw.map((l) => (!l.trim().length ? { type: "sep" as const, value: "" } : { type: "text" as const, value: l }));
 });
 
+async function onToggleEditSave() {
+  if (!(props.isRealOwner || props.canEdit) || props.isLockedByOther) return;
 
-function onToggleEditSave() {
   if (!isEditing.value) {
+    const ok = await props.acquireLock();
+    if (!ok) return;
     isEditing.value = true;
     return;
   }
 
-  onSave(); // reutiliza tu lógica actual de guardar
-  isEditing.value = false;
+  onSave();
 }
 
-
-function onCancel() {
+async function onCancel() {
+  if (isEditing.value) await props.releaseLock();
   isEditing.value = false;
   emit("cancel");
 }
@@ -198,18 +134,19 @@ function onCancel() {
 function onSave() {
   if (!isEditing.value) return;
 
-  const title = localTitle.value.trim().slice(0, 40);
-  if (!title) return;
+  const titleTrimmed = localTitle.value.trim().slice(0, 40);
+  if (props.isRealOwner && !titleTrimmed) return;
 
   emit("save", {
-    title,
+    title: props.isRealOwner ? titleTrimmed : props.task.title,
     description: localDescription.value ?? "",
   });
 
   isEditing.value = false;
+  void props.releaseLock();
 }
 
-
+onUnmounted(() => { if (isEditing.value) void props.releaseLock(); });
 
 const showShare = ref(false);
 let unsubMembers: (() => void) | null = null;
@@ -217,50 +154,38 @@ const isShare = ref(false);
 const { user } = useAuth();
 const { shareItem, resolveEmailToUid } = useSharing();
 
-
-function openShare() {
-  showShare.value = true;
-}
-
-function isOwnedByMe(item: Task): boolean {
-  return item.userId === user.value?.uid;
-}
-
-function isSharedWithMe(item: Task): boolean {
-  return !isOwnedByMe(item);
-}
+function openShare() { showShare.value = true; }
+function isOwnedByMe(item: Task): boolean { return item.userId === user.value?.uid; }
+function isSharedWithMe(item: Task): boolean { return !isOwnedByMe(item); }
 
 async function handleShare(email: string) {
   const targetUid = await resolveEmailToUid(email);
-  if (!targetUid) {
-    alert("Usuario no encontrado");
-    return;
-  }
-
+  if (!targetUid) { alert("Usuario no encontrado"); return; }
   await shareItem(props.task, targetUid, email);
   showShare.value = false;
 }
 
-onMounted(() => {
-  if (!isOwnedByMe(props.task)) {
-    isShare.value = true; // Si no es mía, es que me la han compartido
-    return;
-  }
+watch(() => props.task.id, (id) => {
+  if (unsubMembers) { unsubMembers(); unsubMembers = null; }
+  if (!isOwnedByMe(props.task)) { isShare.value = true; return; }
+  const membersRef = collection(db, "tasks", id, "members");
+  unsubMembers = onSnapshot(membersRef, (snap) => { isShare.value = !snap.empty; }, () => {});
+}, { immediate: true });
 
-  const membersRef = collection(db, "tasks", props.task.id, "members");
-  unsubMembers = onSnapshot(membersRef, (snap) => {
-    isShare.value = !snap.empty;
-  }, (err) => console.debug("Nota: Sin permisos para ver miembros."));
-});
-
-onUnmounted(() => {
-  if (unsubMembers) unsubMembers();
-});
-
+onUnmounted(() => { if (unsubMembers) unsubMembers(); });
 </script>
 
+
 <style scoped>
-  .task-detail-header {
+.edit-lock-banner {
+  color: var(--primary-soft);
+  font-size: 0.75rem;
+  padding: 0.4rem 0.6rem 0rem 0.6rem;
+  text-align: center;
+  font-weight: bold;
+}
+
+.task-detail-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
