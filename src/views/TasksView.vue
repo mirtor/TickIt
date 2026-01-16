@@ -11,8 +11,6 @@
       </div>
     </header>
 
- 
-
     <!-- Contenido principal -->
     <main class="task-main">
       <!-- Botón nueva tarea/nota -->
@@ -214,8 +212,6 @@
       @update-title="handleUpdateTaskTitle"
     />
 
-
-
     <!-- Modal: nueva subtarea -->
     <NewSubtaskModal
       v-if="subtaskModalTask && !showNewTaskNoteModel"
@@ -251,6 +247,9 @@
       @save="handleSaveEditedTask"
     />
 
+  
+    <!-- Animations -->
+    <RandomCatAnimation />
 
   </div>
 
@@ -269,6 +268,8 @@ import NewSubtaskModal from "@/components/NewSubtaskModal.vue";
 import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
 import EditNoteModal from "@/components/EditNoteModal.vue";
 import SharedIndicator from "@/components/Specials/SharedIndicator.vue";
+import RandomCatAnimation from "@/components/Specials/RandomCatAnimation.vue";
+
 
 import { useEditLock } from "@/composables/useEditLock";
 
