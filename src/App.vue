@@ -6,13 +6,16 @@
     @confirm="applyUpdate"
   />
 
-  <div class="version"><p>Versión 09.12.25</p></div>
+  <AppFooterLinks />
+
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import { registerSW } from "virtual:pwa-register";
 import UpdateAppModal from "@/components/UpdateAppModal.vue";
+import AppFooterLinks from "@/components/AppFooterLinks.vue";
+
 
 const showUpdateModal = ref(false);
 

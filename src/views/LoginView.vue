@@ -1,4 +1,15 @@
 <template>
+  <div v-if="loading" class="auth-page">
+    <div class="auth-card auth-card--loading">
+      <img src="/4-dots-rotate.svg" alt="Cargando" class="loading-spinner" />
+      <div class="loading-text">Cargando sesión…</div>
+
+      <button v-if="showRetry" type="button" class="btn btn-outline btn-full" @click="onRetry">
+        Reintentar
+      </button>
+    </div>
+  </div>
+
   <div class="auth-page">
     <div class="auth-card">
       <img src="/TickitIcon.svg" alt="" class="icon-tickit">
@@ -81,42 +92,40 @@
       </p>
     </div>
   </div>
+  
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 
 const router = useRouter();
-const { user, login, register, loginWithGoogle } = useAuth();
+const { user, loading, login, register, loginWithGoogle, logout } = useAuth();
 
 const mode = ref<"login" | "register">("login");
 const email = ref("");
 const password = ref("");
 const submitting = ref(false);
 const error = ref<string | null>(null);
+const showRetry = ref(false);
+let retryTimer: number | null = null;
 
-watch(
-  () => user.value,
-  (u) => {
-    if (u) {
-      router.push({ name: "tasks" });
-    }
-  },
-  { immediate: true }
-);
+watch(() => user.value, (u) => { if (u) router.push({ name: "tasks" }); }, { immediate: true });
+
+watch(() => loading.value, (v) => {
+  if (!v) {
+    showRetry.value = false;
+    if (retryTimer) window.clearTimeout(retryTimer);
+  }
+});
 
 async function onSubmit() {
   error.value = null;
   submitting.value = true;
-
   try {
-    if (mode.value === "login") {
-      await login(email.value, password.value);
-    } else {
-      await register(email.value, password.value);
-    }
+    if (mode.value === "login") await login(email.value, password.value);
+    else await register(email.value, password.value);
   } catch (e: any) {
     error.value = e.message ?? "Error de autenticación";
   } finally {
@@ -127,7 +136,6 @@ async function onSubmit() {
 async function onGoogle() {
   error.value = null;
   submitting.value = true;
-
   try {
     await loginWithGoogle();
   } catch (e: any) {
@@ -136,4 +144,40 @@ async function onGoogle() {
     submitting.value = false;
   }
 }
+
+async function onRetry() {
+  try { await logout(); } catch {}
+  window.location.reload();
+}
+
+onMounted(() => {
+  retryTimer = window.setTimeout(() => {
+    if (loading.value) showRetry.value = true;
+  }, 8000);
+});
+
+onUnmounted(() => {
+  if (retryTimer) window.clearTimeout(retryTimer);
+});
+
 </script>
+
+<style scoped>
+  .auth-card--loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.loading-spinner {
+  width: 56px;
+  height: 56px;
+}
+
+.loading-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+</style>

@@ -19,33 +19,35 @@ function initAuthListener() {
   if (initialized) return;
   initialized = true;
 
-  onAuthStateChanged(auth, async (firebaseUser) => {
-    if (firebaseUser) {
-      console.log("UID LOGUEADO:", firebaseUser.uid);
+  onAuthStateChanged(auth, (firebaseUser) => {
+  if (firebaseUser) {
+    console.log("UID LOGUEADO:", firebaseUser.uid);
 
-      // Guardar / actualizar usuario en Firestore
-      await setDoc(
-        doc(db, "users", firebaseUser.uid),
-        {
-            email: firebaseUser.email,
-            uid: firebaseUser.uid, 
-            lastLogin: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      user.value = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
-      };
-    } else {
-      console.log("NO HAY USUARIO LOGUEADO");
-      user.value = null;
-    }
+    // 1) Actualiza UI primero (sin esperar a Firestore)
+    user.value = {
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: firebaseUser.displayName,
+    };
 
     loading.value = false;
-  });
+
+    // 2) Persistencia en Firestore "fire and forget"
+    setDoc(
+      doc(db, "users", firebaseUser.uid),
+      {
+        email: firebaseUser.email,
+        uid: firebaseUser.uid,
+        lastLogin: serverTimestamp(),
+      },
+      { merge: true }
+    ).catch((e) => console.warn("No se pudo actualizar users/{uid}:", e));
+  } else {
+    console.log("NO HAY USUARIO LOGUEADO");
+    user.value = null;
+    loading.value = false;
+  }
+});
 }
 
 
