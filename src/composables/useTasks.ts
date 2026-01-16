@@ -45,6 +45,31 @@ export type SubtaskInput = {
 
 const tasks = ref<Task[]>([]);
 
+function buildOptionalStringField(value?: string) {
+  const v = value?.trim();
+  return v ? v : undefined;
+}
+
+function sanitizeSubtask(s: any): Subtask {
+  const out: Subtask = {
+    id: String(s.id),
+    title: String(s.title),
+    done: !!s.done,
+  };
+
+  const desc = buildOptionalStringField(s.description);
+  if (desc !== undefined) out.description = desc;
+
+  const link = buildOptionalStringField(s.link);
+  if (link !== undefined) out.link = link;
+
+  const due = buildOptionalStringField(s.dueDate);
+  if (due !== undefined) out.dueDate = due;
+
+  return out;
+}
+
+
 function cleanUndefined<T extends Record<string, unknown>>(obj?: T) {
   const cleaned: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj || {})) {
@@ -92,100 +117,148 @@ export function useTasks() {
     unsubOwn = onSnapshot(ownQuery, (snap) => {
       ownTasksLocal = snap.docs.map(d => ({ ...(d.data() as Task), id: d.id }));
       syncFinalTasks();
-    }, (err) => {
+    }, (err: any) => {
+      if (err?.code === "permission-denied" && !user.value) return;
       console.error("Error en tareas propias:", err);
     });
-
+    
     // MEMBERS (real-time)
     const membersQuery = query(collectionGroup(db, "members"), where("uid", "==", uid));
-    unsubMembers = onSnapshot(membersQuery, (snap) => {
-      const taskIds = snap.docs.map(d => d.ref.parent.parent?.id).filter(Boolean) as string[];
-      const nextSet = new Set(taskIds);
+    unsubMembers = onSnapshot(
+      membersQuery,
+      (snap) => {
+        const taskIds = snap.docs
+          .map((d) => d.ref.parent.parent?.id)
+          .filter(Boolean) as string[];
 
-      // quitar listeners de tasks que ya no están compartidas
-      Array.from(sharedUnsubs.keys()).forEach((taskId) => {
-        if (!nextSet.has(taskId)) {
-          const unsub = sharedUnsubs.get(taskId);
-          if (unsub) unsub();
-          sharedUnsubs.delete(taskId);
-          sharedMap.delete(taskId);
-        }
-      });
+        const nextSet = new Set(taskIds);
 
-      // añadir listeners nuevos
-      taskIds.forEach((taskId) => {
-        if (sharedUnsubs.has(taskId)) return;
-
-        const taskRef = doc(db, "tasks", taskId);
-        const unsubTask = onSnapshot(taskRef, (taskSnap) => {
-          if (!taskSnap.exists()) {
+        // quitar listeners de tasks que ya no están compartidas
+        Array.from(sharedUnsubs.keys()).forEach((taskId) => {
+          if (!nextSet.has(taskId)) {
+            const unsub = sharedUnsubs.get(taskId);
+            if (unsub) unsub();
+            sharedUnsubs.delete(taskId);
             sharedMap.delete(taskId);
-            syncFinalTasks();
-            return;
           }
-          sharedMap.set(taskId, { ...(taskSnap.data() as Task), id: taskSnap.id });
-          syncFinalTasks();
-        }, (err) => {
-          console.error("Error en listener de task compartida:", taskId, err);
         });
 
-        sharedUnsubs.set(taskId, unsubTask);
+        // añadir listeners nuevos
+        taskIds.forEach((taskId) => {
+          if (sharedUnsubs.has(taskId)) return;
+
+          const taskRef = doc(db, "tasks", taskId);
+
+          const unsubTask = onSnapshot(
+            taskRef,
+            (taskSnap) => {
+              if (!taskSnap.exists()) {
+                sharedMap.delete(taskId);
+                syncFinalTasks();
+                return;
+              }
+
+              sharedMap.set(taskId, { ...(taskSnap.data() as Task), id: taskSnap.id });
+              syncFinalTasks();
+            },
+            (err: any) => {
+              // al hacer logout puede saltar un permission-denied "tarde"
+              if (err?.code === "permission-denied" && !user.value) return;
+              console.error("Error en listener de task compartida:", taskId, err);
+            }
+          );
+
+          sharedUnsubs.set(taskId, unsubTask);
+        });
+
+        syncFinalTasks();
+      },
+      (err: any) => {
+        // al hacer logout puede saltar un permission-denied "tarde"
+        if (err?.code === "permission-denied" && !user.value) return;
+        console.error("Error en listener members (collectionGroup):", err);
+      }
+    );
+
+
+
+      }, { immediate: true });
+
+      const tasksOnly = computed(() => tasks.value.filter((t) => t.type === "task"));
+      const notes = computed(() => tasks.value.filter((t) => t.type === "note"));
+      const activeTasks = computed(() => tasksOnly.value.filter((t) => !t.completed));
+      const completedTasks = computed(() => tasksOnly.value.filter((t) => t.completed));
+
+      async function createTask(payload: CreateTaskPayload) {
+        if (!user.value) return;
+        const now = Timestamp.now();
+        await addDoc(collection(db, "tasks"), {
+          userId: user.value.uid,
+          title: payload.title,
+          type: payload.type,
+          description: payload.type === "note" ? payload.description ?? "" : null,
+          completed: false,
+          order: Date.now(),
+          createdAt: now,
+          updatedAt: now,
+          subtasks: [],
+        });
+      }
+
+    async function updateTask(taskId: string, payload: TaskUpdatePayload) {
+      const now = Timestamp.now();
+      const cleaned = cleanUndefined(payload);
+
+      if (cleaned.subtasks) {
+        cleaned.subtasks = cleaned.subtasks.map(sanitizeSubtask);
+      }
+
+      await updateDoc(doc(db, "tasks", taskId), {
+        ...cleaned,
+        updatedAt: now,
       });
+    }
 
-      syncFinalTasks();
-    }, (err) => {
-      console.error("Error en listener members (collectionGroup):", err);
-    });
-  }, { immediate: true });
-
-  const tasksOnly = computed(() => tasks.value.filter((t) => t.type === "task"));
-  const notes = computed(() => tasks.value.filter((t) => t.type === "note"));
-  const activeTasks = computed(() => tasksOnly.value.filter((t) => !t.completed));
-  const completedTasks = computed(() => tasksOnly.value.filter((t) => t.completed));
-
-  async function createTask(payload: CreateTaskPayload) {
-    if (!user.value) return;
-    const now = Timestamp.now();
-    await addDoc(collection(db, "tasks"), {
-      userId: user.value.uid,
-      title: payload.title,
-      type: payload.type,
-      description: payload.type === "note" ? payload.description ?? "" : null,
-      completed: false,
-      order: Date.now(),
-      createdAt: now,
-      updatedAt: now,
-      subtasks: [],
-    });
-  }
-
-  async function updateTask(taskId: string, payload: TaskUpdatePayload) {
-    const now = Timestamp.now();
-    const cleaned = cleanUndefined(payload);
-    await updateDoc(doc(db, "tasks", taskId), { ...cleaned, updatedAt: now });
-  }
 
   async function deleteTask(taskId: string) {
     await deleteDoc(doc(db, "tasks", taskId));
   }
 
   async function addSubtask(task: Task, input: SubtaskInput) {
-    const newSub = {
+    const newSub: Subtask = {
       id: crypto.randomUUID(),
       title: input.title,
       done: !!input.done,
-      description: input.description?.trim() || undefined,
-      link: input.link?.trim() || undefined,
-      dueDate: input.dueDate?.trim() || undefined,
     };
-    const subtasks = [...(task.subtasks || []), newSub];
-    await updateTask(task.id, { subtasks, completed: subtasks.length > 0 && subtasks.every(s => s.done) });
+
+    const desc = buildOptionalStringField(input.description);
+    if (desc !== undefined) newSub.description = desc;
+
+    const link = buildOptionalStringField(input.link);
+    if (link !== undefined) newSub.link = link;
+
+    const due = buildOptionalStringField(input.dueDate);
+    if (due !== undefined) newSub.dueDate = due;
+
+    const subtasks = [...(task.subtasks || []).map(sanitizeSubtask), newSub];
+
+    await updateTask(task.id, {
+      subtasks,
+      completed: subtasks.length > 0 && subtasks.every((s) => s.done),
+    });
   }
 
+
   async function updateSubtask(task: Task, subId: string, payload: Partial<Subtask>) {
-    const subtasks = task.subtasks.map(s => s.id === subId ? { ...s, ...cleanUndefined(payload) } : s);
-    await updateTask(task.id, { subtasks, completed: subtasks.every(s => s.done) });
+    const patch = cleanUndefined(payload);
+
+    const subtasks = (task.subtasks || [])
+      .map(sanitizeSubtask)
+      .map((s) => (s.id === subId ? sanitizeSubtask({ ...s, ...patch }) : s));
+
+    await updateTask(task.id, { subtasks, completed: subtasks.every((s) => s.done) });
   }
+
 
   async function deleteSubtask(task: Task, subId: string) {
     const subtasks = task.subtasks.filter(s => s.id !== subId);

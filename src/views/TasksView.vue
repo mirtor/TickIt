@@ -689,6 +689,45 @@ async function acceptShareNotification(notificationId: string) {
   }
 }
 
+let unsubNotifications: null | (() => void) = null;
+
+watch(
+  () => user.value?.uid,
+  (uid, _prev, onCleanup) => {
+    // corta listener anterior siempre
+    if (unsubNotifications) { unsubNotifications(); unsubNotifications = null; }
+
+    if (!uid) {
+      shareNotifications.value = [];
+      return;
+    }
+
+    const q = query(
+      collection(db, "users", uid, "notifications"),
+      where("read", "==", false)
+    );
+
+    unsubNotifications = onSnapshot(
+      q,
+      (snap) => {
+        shareNotifications.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      },
+      (err: any) => {
+        // si justo estás cerrando sesión, ignora
+        if (err?.code === "permission-denied" && !user.value) return;
+        console.error("Notifications snapshot error:", err);
+      }
+    );
+
+    // cleanup automático si el watch se re-ejecuta o el componente se desmonta
+    onCleanup(() => {
+      if (unsubNotifications) { unsubNotifications(); unsubNotifications = null; }
+    });
+  },
+  { immediate: true }
+);
+
+
 </script>
 
 <style scoped>
