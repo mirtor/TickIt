@@ -92,9 +92,6 @@
       </p>
     </div>
   </div>
-
-  <!-- Animations -->
-  <RandomCatAnimation />
   
 </template>
 
@@ -102,7 +99,6 @@
 import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
-import RandomCatAnimation from "@/components/Specials/RandomCatAnimation.vue";
 
 const router = useRouter();
 const { user, loading, login, register, loginWithGoogle, logout } = useAuth();
