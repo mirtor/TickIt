@@ -293,8 +293,6 @@ const canEditNote = ref(false);
 const isNoteLockedByOther = computed(() => noteLock.value ? unref(noteLock.value.isLockedByOther) : false);
 const noteLockedByEmail = computed(() => noteLock.value ? unref(noteLock.value.lockedByEmail) : null);
 
-let unsubNotifications: null | (() => void) = null;
-
 
 async function computeCanEditForItem(item: Task): Promise<boolean> {
   if (!user.value) return false;
