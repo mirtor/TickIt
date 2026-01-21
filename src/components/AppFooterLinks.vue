@@ -1,4 +1,8 @@
 <template>
+  
+  <!-- Animations -->
+  <RandomCatAnimation />
+
   <div class="app-footer-links">
     
 
@@ -33,6 +37,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import RandomCatAnimation from "@/components/Specials/RandomCatAnimation.vue";
+
 
 const WEB_URL = "https://tick-it-landing.vercel.app/";
 const APP_URL = "https://apptasks-49a0a.web.app/login";

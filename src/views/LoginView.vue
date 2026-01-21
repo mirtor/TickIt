@@ -10,7 +10,7 @@
     </div>
   </div>
 
-  <div class="auth-page">
+  <div v-else class="auth-page">
     <div class="auth-card">
       <img src="/TickitIcon.svg" alt="" class="icon-tickit">
       <h1 class="auth-title">Tickit</h1>

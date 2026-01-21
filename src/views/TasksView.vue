@@ -247,10 +247,6 @@
       @save="handleSaveEditedTask"
     />
 
-  
-    <!-- Animations -->
-    <RandomCatAnimation />
-
   </div>
 
 </template>
@@ -268,8 +264,6 @@ import NewSubtaskModal from "@/components/NewSubtaskModal.vue";
 import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
 import EditNoteModal from "@/components/EditNoteModal.vue";
 import SharedIndicator from "@/components/Specials/SharedIndicator.vue";
-import RandomCatAnimation from "@/components/Specials/RandomCatAnimation.vue";
-
 
 import { useEditLock } from "@/composables/useEditLock";
 
@@ -298,6 +292,8 @@ const noteLock = ref<ReturnType<typeof useEditLock> | null>(null);
 const canEditNote = ref(false);
 const isNoteLockedByOther = computed(() => noteLock.value ? unref(noteLock.value.isLockedByOther) : false);
 const noteLockedByEmail = computed(() => noteLock.value ? unref(noteLock.value.lockedByEmail) : null);
+
+let unsubNotifications: null | (() => void) = null;
 
 
 async function computeCanEditForItem(item: Task): Promise<boolean> {
@@ -400,6 +396,7 @@ watch(() => selectedTask.value?.id, (id) => {
 }, { immediate: true });
 
 
+
 watchEffect(() => {
   const l = selectedTaskLock.value;
   if (!l) return;
@@ -454,23 +451,6 @@ async function openSubtaskModal(task: Task) {
   subtaskModalTask.value = task;
   editingSubtaskId.value = null;
 }
-
-
-async function computeCanEditForTask(taskId: string): Promise<boolean> {
-  if (!user.value || !selectedTask.value) return false;
-
-  // Si soy owner, puedo editar
-  if (selectedTask.value.userId === user.value.uid) return true;
-
-  // Si no soy owner, miro members/{myUid}.canEdit
-  const memberRef = doc(db, "tasks", taskId, "members", user.value.uid);
-  const snap = await getDoc(memberRef);
-  if (!snap.exists()) return false;
-
-  const data = snap.data() as any;
-  return data?.canEdit === true;
-}
-
 
 
 // Acciones sobre subtareas (modal lista)
@@ -633,11 +613,6 @@ async function moveItemDown(item: Task) {
 }
 
 
-
-function isItemShared(item: Task): boolean {
-  return item.userId !== user.value?.uid;
-}
-
 type ShareNotification = {
   id: string;
   fromEmail: string;
@@ -656,25 +631,40 @@ function isSharedWithMe(item: Task): boolean {
 }
 
 // Listener de notificaciones reales
-watch(() => user.value?.uid, (uid) => {
-  if (!uid) {
-    shareNotifications.value = [];
-    return;
-  }
+watch(
+  () => user.value?.uid,
+  (uid) => {
+    // limpiar anterior
+    unsubNotifications?.();
+    unsubNotifications = null;
 
-  const q = query(
-    collection(db, "users", uid, "notifications"),
-    where("read", "==", false)
-  );
+    if (!uid) {
+      shareNotifications.value = [];
+      return;
+    }
 
-  onSnapshot(q, (snap) => {
-    shareNotifications.value = snap.docs.map(d => ({
-      id: d.id,
-      ...d.data()
-    }));
-  });
-}, { immediate: true });
+    const q = query(
+      collection(db, "users", uid, "notifications"),
+      where("read", "==", false)
+    );
 
+    unsubNotifications = onSnapshot(
+      q,
+      (snap) => {
+        shareNotifications.value = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+      },
+      (err: any) => {
+        // si estás deslogueando, ignóralo
+        if (err?.code === "permission-denied" && !user.value) return;
+        console.error("Error en listener notifications:", err);
+      }
+    );
+  },
+  { immediate: true }
+);
 // Función para aceptar compartida real
 async function acceptShareNotification(notificationId: string) {
   if (!user.value) return;
