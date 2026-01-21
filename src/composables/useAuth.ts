@@ -65,6 +65,7 @@ async function loginWithGoogle() {
 }
 
 async function logout() {
+    user.value = null;
     await signOut(auth);
 }
 
