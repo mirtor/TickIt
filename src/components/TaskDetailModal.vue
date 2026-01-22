@@ -66,130 +66,155 @@
 
       <div class="modal-body task-detail-body">
 
-        <!-- Subtareas pendientes -->
-        <div class="subtasks-section" v-if="activeSubtasks.length">
-          <hr class="soft-hr">
-          <div class="subtasks-title">Subtareas pendientes</div>
+        <!-- Tabs -->
+        <div class="auth-tabs subtasks-tabs" v-if="(activeSubtasks.length + completedSubtasks.length) > 0" >
+          <button
+            class="auth-tab task-button"
+            :class="{ 'auth-tab--active': subtasksTab === 'pending' }"
+            @click="subtasksTab = 'pending'"
+          >
+            Pendientes ({{ activeSubtasks.length }})
+          </button>
 
-          <div class="subtasks-list">
-            <div
-              v-for="st in activeSubtasks"
-              :key="st.id"
-              class="subtask-row"
-            >
-              <input class="subtask-checkbox" type="checkbox" :checked="st.done" :disabled="!props.isOwner || props.isLockedByOther" @change="emit('toggle-subtask', st.id)" />
+          <button
+            class="auth-tab note-button"
+            :class="{ 'auth-tab--active': subtasksTab === 'completed' }"
+            @click="subtasksTab = 'completed'"
+          >
+            Completadas ({{ completedSubtasks.length }})
+          </button>
+        </div>
 
-              <div class="subtask-main">
-                <div class="subtask-title">
-                  {{ st.title }}
-                </div>
+        <!-- Contenido pestaña: Pendientes -->
+        <div v-if="subtasksTab === 'pending'" class="subtasks-tab-content">
+          
+          <div class="subtasks-list-scroll">
+            <div v-if="activeSubtasks.length" class="subtasks-section">
+              <div class="subtasks-list">
+                <div v-for="st in activeSubtasks" :key="st.id" class="subtask-row">
+                  <input
+                    class="subtask-checkbox"
+                    type="checkbox"
+                    :checked="st.done"
+                    :disabled="!props.isOwner || props.isLockedByOther"
+                    @change="emit('toggle-subtask', st.id)"
+                  />
 
-                <!-- META: Fecha + enlace en la misma línea -->
-                <div class="subtask-meta">
-                  <div class="subtask-meta-row">
-                    <span v-if="st.dueDate" class="subtask-date">
-                      Fecha: {{ st.dueDate }}
-                    </span>
+                  <div class="subtask-main">
+                    <div class="subtask-title">{{ st.title }}</div>
 
-                    <a
-                      v-if="st.link"
-                      class="subtask-link"
-                      :href="st.link"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <div class="subtask-meta">
+                      <div class="subtask-meta-row">
+                        <span v-if="st.dueDate" class="subtask-date">Fecha: {{ st.dueDate }}</span>
+                        <a
+                          v-if="st.link"
+                          class="subtask-link"
+                          :href="st.link"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          enlace
+                        </a>
+                      </div>
+
+                      <div v-if="st.description" class="subtask-description">
+                        {{ st.description }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="subtask-actions">
+                    <button
+                      class="icon-btn"
+                      @click="emit('edit-subtask', st.id)"
+                      :disabled="!props.isOwner || props.isLockedByOther"
+                      :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'"
                     >
-                      enlace
-                    </a>
-                  </div>
-
-                  <!-- Descripción debajo -->
-                  <div
-                    v-if="st.description"
-                    class="subtask-description"
-                  >
-                    {{ st.description }}
+                      <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
+                    </button>
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div class="subtask-actions">
-                <button class="icon-btn" @click="emit('edit-subtask', st.id)" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'">
-                  <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-                </button>
-
-              </div>
-
-              </div>
+            <div v-else class="subtasks-empty">
+              No hay subtareas pendientes.
             </div>
           </div>
-      </div>
 
-      <!-- Botón nueva subtarea -->
-      <button class="btn btn-primary" @click="emit('open-new-subtask')" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Añadir subtarea'">Nueva subtarea</button>
-
-
-      <!-- Subtareas completadas -->
-      <div class="subtasks-section" v-if="completedSubtasks.length">
-        <hr class="soft-hr">
-        <div class="subtasks-title">Subtareas completadas</div>
-
-        <div class="subtasks-list">
-          <div
-            v-for="st in completedSubtasks"
-            :key="st.id"
-            class="subtask-row subtask-row--completed"
-          >
-            <input class="subtask-checkbox" type="checkbox" :checked="st.done" :disabled="!props.isOwner || props.isLockedByOther" @change="emit('toggle-subtask', st.id)" />
-
-
-            <div class="subtask-main">
-              <div class="subtask-title subtask-title--completed">
-                {{ st.title }}
-              </div>
-
-              <div class="subtask-meta">
-                <div class="subtask-meta-row">
-                  <span v-if="st.dueDate" class="subtask-date">
-                    Fecha: {{ st.dueDate }}
-                  </span>
-
-                  <a
-                    v-if="st.link"
-                    class="subtask-link"
-                    :href="st.link"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    enlace
-                  </a>
-                </div>
-
-                <div
-                  v-if="st.description"
-                  class="subtask-description"
-                >
-                  {{ st.description }}
-                </div>
-              </div>
-            </div>
-
-            <div class="subtask-actions">
-              <button class="icon-btn" @click="emit('edit-subtask', st.id)" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'">
-                <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
-              </button>
-            </div>
+          <div class="subtasks-actions">
+            <button class="btn btn-primary btn-full" @click="emit('open-new-subtask')" :disabled="!props.isOwner || props.isLockedByOther" :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Añadir subtarea'">
+              Nueva subtarea
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Desmarcar todas -->
-      <button
-        v-if="task.subtasks && task.subtasks.length"
-        class="btn btn-outline btn-full btn-uncheck-all"
-        @click="emit('uncheck-all')"
-      >
-        Desmarcar todas las subtareas
-      </button>
+        <!-- Contenido pestaña: Completadas -->
+        <div v-else class="subtasks-tab-content">
+          <div class="subtasks-list-scroll">
+            <div v-if="completedSubtasks.length" class="subtasks-section">
+              <div class="subtasks-list">
+                <div
+                  v-for="st in completedSubtasks"
+                  :key="st.id"
+                  class="subtask-row subtask-row--completed"
+                >
+                  <input
+                    class="subtask-checkbox"
+                    type="checkbox"
+                    :checked="st.done"
+                    :disabled="!props.isOwner || props.isLockedByOther"
+                    @change="emit('toggle-subtask', st.id)"
+                  />
+
+                  <div class="subtask-main">
+                    <div class="subtask-title subtask-title--completed">{{ st.title }}</div>
+
+                    <div class="subtask-meta">
+                      <div class="subtask-meta-row">
+                        <span v-if="st.dueDate" class="subtask-date">Fecha: {{ st.dueDate }}</span>
+                        <a
+                          v-if="st.link"
+                          class="subtask-link"
+                          :href="st.link"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          enlace
+                        </a>
+                      </div>
+
+                      <div v-if="st.description" class="subtask-description">
+                        {{ st.description }}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="subtask-actions">
+                    <button
+                      class="icon-btn"
+                      @click="emit('edit-subtask', st.id)"
+                      :disabled="!props.isOwner || props.isLockedByOther"
+                      :title="props.isLockedByOther ? `En edición por ${props.lockedByEmail ?? 'otro usuario'}` : 'Editar subtarea'"
+                    >
+                      <img src="/editIcon.svg" alt="Editar" class="task-card-icon" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="subtasks-empty">
+              No hay subtareas completadas.
+            </div>
+          </div>
+
+          <!-- Acción global (fuera del scroll) -->
+          <button v-if="task.subtasks && task.subtasks.length" class="btn btn-outline btn-full btn-uncheck-all" :disabled="!props.isOwner || props.isLockedByOther" @click="emit('uncheck-all')">
+            Desmarcar todas las subtareas
+          </button>
+        </div>
+      </div>
 
 
     </div>
@@ -305,6 +330,19 @@ async function handleShare(email: string) {
   await shareItem(props.task, targetUid, email);
   showShare.value = false;
 }
+
+const subtasksTab = ref<"pending" | "completed">("pending");
+
+// si ya no quedan pendientes, cambia a completadas automáticamente (y viceversa)
+watch(
+  () => [activeSubtasks.value.length, completedSubtasks.value.length] as const,
+  ([p, c]) => {
+    if (subtasksTab.value === "pending" && p === 0 && c > 0) subtasksTab.value = "completed";
+    if (subtasksTab.value === "completed" && c === 0 && p > 0) subtasksTab.value = "pending";
+  },
+  { immediate: true }
+);
+
 
 onMounted(() => {
   if (!isOwnedByMe(props.task)) {
@@ -468,5 +506,56 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 0.75rem;
 }
+
+
+
+/* IMPORTANTE: para que el scroll interno funcione */
+.task-detail-modal {
+  display: flex;
+  flex-direction: column;
+  height: 85vh; 
+}
+
+.task-detail-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;   /* clave */
+  overflow: hidden; /* clave */
+  gap: 0.6rem;
+}
+
+.subtasks-tabs {
+  margin-top: 20px;
+  margin-bottom: 0.25rem;
+}
+
+.subtasks-tab-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* clave */
+  gap: 0.5rem;
+}
+
+.subtasks-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.subtasks-list-scroll {
+  flex: 1;
+  min-height: 0; /* clave */
+  overflow: auto;
+  padding-right: 2px; /* para que el scroll no pise el contenido */
+}
+
+.subtasks-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.75rem 0;
+}
+
 </style>
 

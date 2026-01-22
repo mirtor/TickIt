@@ -21,11 +21,10 @@ const showUpdateModal = ref(false);
 
 // registerSW devuelve una función para forzar update
 const updateSW = registerSW({
+  immediate: true,
   onNeedRefresh() {
-    showUpdateModal.value = true;
-  },
-  onOfflineReady() {
-    // opcional
+    // aplica el update (skipWaiting) y recarga
+    updateSW(true).then(() => window.location.reload());
   },
 });
 

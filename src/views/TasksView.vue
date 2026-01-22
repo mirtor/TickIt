@@ -45,8 +45,6 @@
         <!-- Tareas activas -->
         <section v-if="activeTasks.length" class="task-list-section">
 
-          <h2 class="task-list-title">Tareas activas</h2>
-
           <div class="task-list">
             <article v-for="task in activeTasks" :key="task.id" class="task-card" @click="onTaskCardClick(task)" >
               <!-- Botones Reordenar -->
@@ -87,8 +85,6 @@
         <!-- Tareas completadas -->
         <section v-if="completedTasks.length" class="task-list-section completed-section">
 
-          <h2 class="task-list-title">Tareas completadas</h2>
-
           <div class="task-list">
             <article v-for="task in completedTasks" :key="task.id" class="task-card" @click="onTaskCardClick(task)" >
               <!-- Botones Reordenar -->
@@ -128,8 +124,7 @@
 
       <!-- Contenido Notas -->
       <section v-if="activeTab === 'notes'" class="task-list-section">
-        <h2 class="task-list-title">Notas</h2>
-
+        
         <div class="task-list">
           <article v-for="note in notes" :key="note.id" class="task-card task-card--note" @click="openEditNoteModal(note)">
             <!-- Botones Reordenar -->
@@ -229,6 +224,7 @@
     <DeleteTaskModal
       v-if="showDeleteModal && taskToDelete"
       :taskTitle="taskToDelete.title"
+      :entityLabel="taskToDelete.type === 'note' ? 'nota' : 'tarea'"
       @cancel="closeDeleteModal"
       @confirm="confirmDeleteTask"
     />

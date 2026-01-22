@@ -276,7 +276,7 @@ body {
 /* ==== VISTA DE TAREAS ==== */
 
 .task-page {
-  min-height: 100vh;
+  min-height: 50vh;
   background-color: var(--bg-color);
   display: flex;
   flex-direction: column;
@@ -347,12 +347,6 @@ body {
   margin-top: 0.5rem;
 }
 
-.task-list-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 0.5rem;
-}
 
 .task-list {
   display: flex;

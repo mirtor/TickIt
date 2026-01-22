@@ -8,6 +8,15 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: "autoUpdate",
+
+      // Esto hace que el SW nuevo tome control sin esperar
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+        // opcional pero útil para que no se “pise” la index vieja
+        navigateFallbackDenylist: [/^\/__/],
+      },
+
       includeAssets: [
         "TickitIcon.svg",
         "googleIcon.ico",
@@ -23,16 +32,8 @@ export default defineConfig({
         background_color: "#ffffff",
         display: "standalone",
         icons: [
-          {
-            src: "/pwa-192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
+          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
           {
             src: "/pwa-512-maskable.png",
             sizes: "512x512",

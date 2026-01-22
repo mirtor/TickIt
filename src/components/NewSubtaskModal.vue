@@ -124,11 +124,29 @@
 
 
     </div>
-  </div>
+
+    
+    </div>
+      <DeleteTaskModal
+      v-if="showDeleteConfirm"
+      :taskTitle="title || 'Subtarea'"
+      entityLabel="subtarea"
+      header="Borrar subtarea"
+      @cancel="showDeleteConfirm = false"
+      @confirm="
+        () => {
+          showDeleteConfirm = false;
+          emit('delete');
+        }
+      "
+    />
+
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import DeleteTaskModal from "@/components/DeleteTaskModal.vue";
+
 
 const props = defineProps<{
   taskTitle: string;
@@ -162,6 +180,9 @@ const dueDate = ref("");
 
 // Control de modo vista/edición
 const isEditing = ref(false);
+
+const showDeleteConfirm = ref(false);
+
 
 function loadInitial() {
   const st = props.initialSubtask;
@@ -248,7 +269,8 @@ function onSubmit() {
 }
 
 function onDelete() {
-  emit("delete");
+  if (!isEdit.value) return;
+  showDeleteConfirm.value = true;
 }
 </script>
 

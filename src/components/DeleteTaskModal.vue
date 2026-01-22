@@ -2,13 +2,13 @@
   <div class="modal-backdrop" @click.self="onCancel">
     <div class="modal">
       <div class="modal-header">
-        <h2 class="modal-title">Borrar tarea</h2>
+        <h2 class="modal-title">{{ headerText }}</h2>
       </div>
 
       <div class="modal-body">
         <p class="delete-warning-text">
-          ¿Seguro que quieres borrar la tarea
-          <strong>"{{ taskTitle }}"</strong>?
+          {{ bodyText }}
+          <strong>"{{ itemTitle }}"</strong>?
           <br />
           Esta acción no se puede deshacer.
         </p>
@@ -19,11 +19,8 @@
           Cancelar
         </button>
 
-        <button
-          class="btn btn-primary btn-danger"
-          @click="emit('confirm')"
-        >
-          Eliminar
+        <button class="btn btn-primary btn-danger" @click="emit('confirm')">
+          {{ confirmText }}
         </button>
       </div>
     </div>
@@ -31,8 +28,14 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from "vue";
+
 const props = defineProps<{
-  taskTitle: string;
+  taskTitle: string;                 
+  entityLabel?: string;              // "tarea" | "nota" | "subtarea" | ...
+  header?: string;                   // texto del header, opcional
+  confirmLabel?: string;             // texto del botón, opcional
+  bodyPrefix?: string;               // "¿Seguro que quieres borrar la ..." opcional
 }>();
 
 const emit = defineEmits<{
@@ -43,6 +46,13 @@ const emit = defineEmits<{
 function onCancel() {
   emit("cancel");
 }
+
+const itemTitle = computed(() => props.taskTitle ?? "");
+const label = computed(() => props.entityLabel ?? "tarea");
+
+const headerText = computed(() => props.header ?? `Borrar ${label.value}`);
+const confirmText = computed(() => props.confirmLabel ?? "Eliminar");
+const bodyText = computed(() => props.bodyPrefix ?? `¿Seguro que quieres borrar la ${label.value} `);
 </script>
 
 <style scoped>
@@ -51,13 +61,11 @@ function onCancel() {
   color: var(--text-muted);
 }
 
-/* Variante roja del botón */
 .btn-danger {
   background-color: #b91c1c;
   border-color: #b91c1c;
 }
 
-/* Por si tu .btn-primary tiene hover propio */
 .btn-danger:hover {
   filter: brightness(0.95);
 }

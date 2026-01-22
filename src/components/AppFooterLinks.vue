@@ -30,7 +30,7 @@
     <div v-if="toast" class="links-toast">{{ toast }}</div>
 
     <div class="version-row">
-      <span>Versión 16.01.26</span>
+      <span>Versión 22.01.26</span>
     </div>
   </div>
 </template>
