@@ -67,7 +67,7 @@
       <div class="modal-body task-detail-body">
 
         <!-- Tabs -->
-        <div class="auth-tabs subtasks-tabs" v-if="(activeSubtasks.length + completedSubtasks.length) > 0" >
+        <div class="auth-tabs subtasks-tabs special-font" v-if="(activeSubtasks.length + completedSubtasks.length) > 0" >
           <button
             class="auth-tab task-button"
             :class="{ 'auth-tab--active': subtasksTab === 'pending' }"
@@ -556,6 +556,8 @@ onUnmounted(() => {
   text-align: center;
   padding: 0.75rem 0;
 }
+
+.special-font button{font-size:0.8rem !important;}
 
 </style>
 

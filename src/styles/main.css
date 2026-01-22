@@ -96,7 +96,7 @@ body {
 .auth-tab {
   border: none;
   border-radius: 999px;
-  padding: 0.35rem 3rem;
+  padding: 0.35rem 0rem;
   font-size: 1rem;
   cursor: pointer;
   background-color: #e5e7eb;
@@ -556,7 +556,7 @@ body {
 }
 
 .subtask-title {
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 500;
   text-align: left;
 }
